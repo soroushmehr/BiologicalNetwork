@@ -29,6 +29,12 @@ def load(path):
     f.close()
     return params
 
+def mnist():
+    f = gzip.open("mnist.pkl.gz", 'rb')
+    datasets = cPickle.load(f)
+    f.close()
+    return datasets
+
 def rho(x):
     return theano.tensor.clip(x, 0., 1.)
 
@@ -180,9 +186,3 @@ class Network(object):
         )
 
         return inference_step
-
-def mnist():
-    f = gzip.open("mnist.pkl.gz", 'rb')
-    datasets = cPickle.load(f)
-    f.close()
-    return datasets
