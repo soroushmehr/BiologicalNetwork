@@ -142,9 +142,9 @@ class Network(object):
         rho_y = rho(self.y)
 
         bx_delta = T.mean(x_delta, axis=0)
-        W1_delta = T.dot(x_delta.T, rho_h) + T.dot(rho_x.T, h_delta) / self.x.shape[0]
+        W1_delta = (T.dot(x_delta.T, rho_h) + T.dot(rho_x.T, h_delta)) / self.x.shape[0]
         bh_delta = T.mean(h_delta, axis=0)
-        W2_delta = T.dot(h_delta.T, rho_y) + T.dot(rho_h.T, y_delta) / self.x.shape[0]
+        W2_delta = (T.dot(h_delta.T, rho_y) + T.dot(rho_h.T, y_delta)) / self.x.shape[0]
         by_delta = T.mean(y_delta, axis=0)
 
         return [bx_delta, W1_delta, bh_delta, W2_delta, by_delta]
