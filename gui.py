@@ -18,9 +18,6 @@ class GUI(Tk):
         self.net = Network(batch_size=1)
         self.inference_step = self.net.build_inference_step()
 
-        train_set, valid_set, test_set = mnist()
-        (self.test_set_x, self.test_set_y) = test_set
-
         self.canvas = Canvas(self, width=600, height=500)
         self.canvas.pack(side=BOTTOM)
 
@@ -40,7 +37,7 @@ class GUI(Tk):
         # FREQUENCY OF UPDATES
         Label(self, text="latency").pack(side=LEFT)
         self.latency = DoubleVar()
-        self.latency.set(1)
+        self.latency.set(1.)
         Entry(self, textvariable=self.latency, width=5).pack(side=LEFT)
 
         # INDEX OF TEST EXAMPLE IN THE TEST SET
@@ -73,11 +70,12 @@ class GUI(Tk):
         Entry(self, textvariable=self.eps_w, width=5).pack(side=LEFT)
 
 
-        # CLEAR BUTTON
-        def clear():
-            self.net.clear()
+        # CLAMP BUTTON
+        def clamp():
+            index = self.index.get()
+            self.net.clamp(index=index,clear=True)
             self.update_canvas()
-        Button(self, text="Clear", command=clear).pack(side=LEFT)
+        Button(self, text="Clear", command=clamp).pack(side=LEFT)
 
         # INFERENCE BUTTON
         def set_inference():
@@ -100,6 +98,10 @@ class GUI(Tk):
 
     def update_canvas(self, first_time = False):
 
+        x_data_mat = 256*self.net.x_data.get_value().reshape((28,28))
+        x_data_img=Image.fromarray(x_data_mat).resize((140,140))
+        self.x_data_imgTk=ImageTk.PhotoImage(x_data_img)
+
         x_mat = 256*self.net.x.get_value().reshape((28,28))
         x_img=Image.fromarray(x_mat).resize((140,140))
         self.x_imgTk=ImageTk.PhotoImage(x_img)
@@ -112,14 +114,24 @@ class GUI(Tk):
         y_img=Image.fromarray(y_mat).resize((250,25))
         self.y_imgTk=ImageTk.PhotoImage(y_img)
 
+        y_data_one_hot_mat = np.zeros( shape=(1, 10) )
+        index = self.net.y_data.get_value()[0]
+        y_data_one_hot_mat[0,index] = 256.
+        y_data_one_hot_img=Image.fromarray(y_data_one_hot_mat).resize((250,25))
+        self.y_data_one_hot_imgTk=ImageTk.PhotoImage(y_data_one_hot_img)
+
         if first_time:
-            self.y_img_canvas = self.canvas.create_image(300, 100, image = self.y_imgTk)
-            self.h_img_canvas = self.canvas.create_image(300, 200, image = self.h_imgTk)
-            self.x_img_canvas = self.canvas.create_image(300, 300, image = self.x_imgTk)
+            self.y_data_one_hot_img_canvas = self.canvas.create_image(300, 50,  image = self.y_data_one_hot_imgTk)
+            self.y_img_canvas              = self.canvas.create_image(300, 100, image = self.y_imgTk)
+            self.h_img_canvas              = self.canvas.create_image(300, 150, image = self.h_imgTk)
+            self.x_img_canvas              = self.canvas.create_image(300, 250, image = self.x_imgTk)
+            self.x_data_img_canvas         = self.canvas.create_image(300, 400, image = self.x_data_imgTk)
         else:
-            self.canvas.itemconfig(self.y_img_canvas, image = self.y_imgTk)
-            self.canvas.itemconfig(self.h_img_canvas, image = self.h_imgTk)
-            self.canvas.itemconfig(self.x_img_canvas, image = self.x_imgTk)
+            self.canvas.itemconfig(self.y_data_one_hot_img_canvas, image = self.y_data_one_hot_imgTk)
+            self.canvas.itemconfig(self.y_img_canvas,              image = self.y_imgTk)
+            self.canvas.itemconfig(self.h_img_canvas,              image = self.h_imgTk)
+            self.canvas.itemconfig(self.x_img_canvas,              image = self.x_imgTk)
+            self.canvas.itemconfig(self.x_data_img_canvas,         image = self.x_data_imgTk)
 
     def run(self):
 
@@ -128,15 +140,14 @@ class GUI(Tk):
             while self.running:
 
                 index = self.index.get() # index of the test example in the test set
-                x_data = self.test_set_x[index:index+1,]
-                y_data = self.test_set_y[index:index+1,]
+                self.net.clamp(index=index, clear=False)
 
                 lambda_x = self.lambda_x.get()
                 lambda_y = self.lambda_y.get()
                 eps_s = self.eps_s.get()
                 eps_w = self.eps_w.get()
 
-                [energy, prediction, error] = self.inference_step(x_data, y_data, lambda_x, lambda_y, eps_s, eps_w)
+                [energy, prediction, error_rate, square_loss] = self.inference_step(lambda_x, lambda_y, eps_s, eps_w)
 
                 print("energy = %f" % (energy))
                 

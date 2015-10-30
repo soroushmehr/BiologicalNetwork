@@ -45,6 +45,7 @@ class Network(object):
 
     def __init__(self, batch_size=1):
 
+        # LOAD/INITIALIZE PARAMETERS
         if not os.path.isfile("params.save"):
             bx_values = np.zeros((28*28,), dtype=theano.config.floatX)
             W1_values = initialize_layer(28*28, 500)
@@ -54,35 +55,39 @@ class Network(object):
         else:
             [bx_values, W1_values, bh_values, W2_values, by_values] = load("params.save")
 
-        self.batch_size = batch_size
-        self.rng = np.random.RandomState()
-        x_values = np.asarray(
-            self.rng.uniform( low=0, high=1, size=(self.batch_size, 28*28) ),
-            dtype=theano.config.floatX
-        )
-        h_values = np.asarray(
-            self.rng.uniform( low=0, high=1, size=(self.batch_size, 500) ),
-            dtype=theano.config.floatX
-        )
-        y_values = np.asarray(
-            self.rng.uniform( low=0, high=0.2, size=(self.batch_size, 10) ),
-            dtype=theano.config.floatX
-        )
-
         self.bx = theano.shared(value=bx_values, name='bx', borrow=True)
         self.W1 = theano.shared(value=W1_values, name='W1', borrow=True)
         self.bh = theano.shared(value=bh_values, name='bh', borrow=True)
         self.W2 = theano.shared(value=W2_values, name='W2', borrow=True)
         self.by = theano.shared(value=by_values, name='by', borrow=True)
 
-        self.x = theano.shared(value=x_values, name='x', borrow=True)
-        self.h = theano.shared(value=h_values, name='h', borrow=True)
-        self.y = theano.shared(value=y_values, name='y', borrow=True)
-
         self.params = [self.bx, self.W1, self.bh, self.W2, self.by]
-        self.states = [self.x, self.h, self.y]
 
-        #self.theano_rng = RandomStreams(np.random.RandomState().randint(2 ** 30))
+        # LOAD DATASETS
+        train_set, valid_set, test_set = mnist()
+        self.train_set_x, self.train_set_y = train_set
+
+        # INITIALIZE STATES
+        self.batch_size = batch_size
+        self.rng = np.random.RandomState()
+
+        self.x_data = theano.shared(value=np.zeros((self.batch_size, 28*28)), name='x_data', borrow=True)
+        self.x      = theano.shared(value=np.zeros((self.batch_size, 28*28)), name='x',      borrow=True)
+        self.h      = theano.shared(value=np.zeros((self.batch_size, 500)),   name='h',      borrow=True)
+        self.y      = theano.shared(value=np.zeros((self.batch_size, 10)),    name='y',      borrow=True)
+        self.y_data = theano.shared(value=np.zeros((self.batch_size, ), dtype='int64'), name='y_data', borrow=True)
+
+        self.y_data_one_hot = T.extra_ops.to_one_hot(self.y_data, 10)
+
+        self.clamp(index=0)
+
+        self.states = [self.x_data, self.x, self.h, self.y, self.y_data_one_hot]
+
+        #self.theano_rng = RandomStreams(self.rng.randint(2 ** 30))
+
+        self.prediction  = T.argmax(self.y, axis=1)
+        self.error_rate  = T.mean(T.neq(self.prediction, self.y_data))
+        self.square_loss = T.mean(((self.y - self.y_data_one_hot) ** 2).sum(axis=1))
 
     def save(self):
         f = file("params.save", 'wb')
@@ -90,24 +95,23 @@ class Network(object):
         cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
         f.close()
 
-    def clear(self, x_value = None):
-        if x_value == None:
-            x_value = np.asarray(
+    def clamp(self, index, clear=True):
+        self.x_data.set_value(self.train_set_x[index*self.batch_size:(index+1)*self.batch_size,])
+        self.y_data.set_value(self.train_set_y[index*self.batch_size:(index+1)*self.batch_size,])
+
+        if clear:
+            self.x.set_value(np.asarray(
                 self.rng.uniform( low=0, high=1, size=(self.batch_size, 28*28) ),
                 dtype=theano.config.floatX
-            )
-        self.x.set_value(x_value)
-        self.h.set_value(np.asarray(
-            self.rng.uniform( low=0, high=1, size=(self.batch_size, 500) ),
-            dtype=theano.config.floatX
-        ))
-        self.y.set_value(np.asarray(
-            self.rng.uniform( low=0, high=1, size=(self.batch_size, 10) ),
-            dtype=theano.config.floatX
-        ))
-
-    def prediction(self):
-        return T.argmax(self.y, axis=1)
+            ))
+            self.h.set_value(np.asarray(
+                self.rng.uniform( low=0, high=1, size=(self.batch_size, 500) ),
+                dtype=theano.config.floatX
+            ))
+            self.y.set_value(np.asarray(
+                self.rng.uniform( low=0, high=1, size=(self.batch_size, 10) ),
+                dtype=theano.config.floatX
+            ))
 
     def energy(self):
         rho_x = rho(self.x)
@@ -149,18 +153,14 @@ class Network(object):
 
         [x_dot, h_dot, y_dot] = self.states_dot()
 
-        x_data = T.matrix('x')
-        y_data = T.lvector('y')
-        y_data_one_hot = T.extra_ops.to_one_hot(y_data, 10)
-
         lambda_x = T.dscalar('lambda_x')
         lambda_y = T.dscalar('lambda_y')
         epsilon_states = T.dscalar('epsilon_states')
         epsilon_params = T.dscalar('epsilon_params')
 
-        x_delta = (1 - lambda_x) * epsilon_states * x_dot + lambda_x * (x_data - self.x)
+        x_delta = (1 - lambda_x) * epsilon_states * x_dot + lambda_x * (self.x_data - self.x)
         h_delta = epsilon_states * h_dot
-        y_delta = (1 - lambda_y) * epsilon_states * y_dot + lambda_y * (y_data_one_hot - self.y)
+        y_delta = (1 - lambda_y) * epsilon_states * y_dot + lambda_y * (self.y_data_one_hot - self.y)
 
         [bx_delta, W1_delta, bh_delta, W2_delta, by_delta] = self.params_delta(x_delta, h_delta, y_delta)
 
@@ -175,13 +175,10 @@ class Network(object):
         by_new = self.by + epsilon_params * by_delta
 
         updates = [(self.x,x_new), (self.h,h_new), (self.y,y_new), (self.bx,bx_new), (self.W1,W1_new), (self.bh,bh_new), (self.W2,W2_new), (self.by,by_new)]
-        energy = self.energy()
-        prediction = self.prediction()
-        error = T.mean(T.neq(y_data, prediction))
 
         inference_step = theano.function(
-            inputs=[x_data, y_data, lambda_x, lambda_y, epsilon_states, epsilon_params],
-            outputs=[energy, prediction, error],
+            inputs=[lambda_x, lambda_y, epsilon_states, epsilon_params],
+            outputs=[self.energy(), self.prediction, self.error_rate, self.square_loss],
             updates=updates
         )
 
