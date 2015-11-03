@@ -69,6 +69,11 @@ class GUI(Tk):
         self.eps_w.set(0.)
         Entry(self, textvariable=self.eps_w, width=5).pack(side=LEFT)
 
+        Label(self, text="eps_y").pack(side=LEFT)
+        self.eps_y = DoubleVar()
+        self.eps_y.set(0.)
+        Entry(self, textvariable=self.eps_y, width=5).pack(side=LEFT)
+
 
         # CLAMP BUTTON
         def clamp():
@@ -83,14 +88,16 @@ class GUI(Tk):
             self.lambda_y.set(0.)
             self.eps_s.set(0.1)
             self.eps_w.set(0.)
+            self.eps_y.set(0.)
         Button(self, text="Inference", command=set_inference).pack(side=LEFT)
 
         # LEARNING BUTTON
         def set_learning():
             self.lambda_x.set(1.)
-            self.lambda_y.set(0.5)
-            self.eps_s.set(0.1)
+            self.lambda_y.set(1.)
+            self.eps_s.set(0.5)
             self.eps_w.set(0.1)
+            self.eps_y.set(0.1)
         Button(self, text="Learning", command=set_learning).pack(side=LEFT)
 
 
@@ -146,8 +153,9 @@ class GUI(Tk):
                 lambda_y = self.lambda_y.get()
                 eps_s = self.eps_s.get()
                 eps_w = self.eps_w.get()
+                eps_y = self.eps_y.get()
 
-                [energy, prediction, error_rate, square_loss] = self.inference_step(lambda_x, lambda_y, eps_s, eps_w)
+                [energy, prediction, error_rate, square_loss] = self.inference_step(lambda_x, lambda_y, eps_s, eps_w, eps_y)
 
                 print("energy = %f" % (energy))
                 

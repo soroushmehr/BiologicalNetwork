@@ -100,10 +100,7 @@ class Network(object):
         self.y_data.set_value(self.train_set_y[index*self.batch_size:(index+1)*self.batch_size,])
 
         if clear:
-            self.x.set_value(np.asarray(
-                self.rng.uniform( low=0, high=1, size=(self.batch_size, 28*28) ),
-                dtype=theano.config.floatX
-            ))
+            self.x.set_value(self.train_set_x[index*self.batch_size:(index+1)*self.batch_size,])
             self.h.set_value(np.asarray(
                 self.rng.uniform( low=0, high=1, size=(self.batch_size, 500) ),
                 dtype=theano.config.floatX
@@ -157,10 +154,11 @@ class Network(object):
         lambda_y = T.dscalar('lambda_y')
         epsilon_states = T.dscalar('epsilon_states')
         epsilon_params = T.dscalar('epsilon_params')
+        epsilon_y = T.dscalar('epsilon_y')
 
         x_delta = (1 - lambda_x) * epsilon_states * x_dot + lambda_x * (self.x_data - self.x)
         h_delta = epsilon_states * h_dot
-        y_delta = (1 - lambda_y) * epsilon_states * y_dot + lambda_y * (self.y_data_one_hot - self.y)
+        y_delta = (1 - lambda_y) * epsilon_states * y_dot + lambda_y * epsilon_y * (self.y_data_one_hot - self.y)
 
         [bx_delta, W1_delta, bh_delta, W2_delta, by_delta] = self.params_delta(x_delta, h_delta, y_delta)
 
@@ -177,7 +175,7 @@ class Network(object):
         updates = [(self.x,x_new), (self.h,h_new), (self.y,y_new), (self.bx,bx_new), (self.W1,W1_new), (self.bh,bh_new), (self.W2,W2_new), (self.by,by_new)]
 
         inference_step = theano.function(
-            inputs=[lambda_x, lambda_y, epsilon_states, epsilon_params],
+            inputs=[lambda_x, lambda_y, epsilon_states, epsilon_params, epsilon_y],
             outputs=[self.energy(), self.prediction, self.error_rate, self.square_loss],
             updates=updates
         )
