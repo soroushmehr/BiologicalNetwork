@@ -64,9 +64,14 @@ class GUI(Tk):
         self.eps_s.set(0.1)
         Entry(self, textvariable=self.eps_s, width=5).pack(side=LEFT)
 
-        Label(self, text="eps_w").pack(side=LEFT)
-        self.eps_w = DoubleVar()
-        self.eps_w.set(0.)
+        Label(self, text="eps_W1").pack(side=LEFT)
+        self.eps_W1 = DoubleVar()
+        self.eps_W1.set(0.)
+        Entry(self, textvariable=self.eps_w, width=5).pack(side=LEFT)
+
+        Label(self, text="eps_W2").pack(side=LEFT)
+        self.eps_W2 = DoubleVar()
+        self.eps_W2.set(0.)
         Entry(self, textvariable=self.eps_w, width=5).pack(side=LEFT)
 
         Label(self, text="eps_y").pack(side=LEFT)
@@ -87,7 +92,8 @@ class GUI(Tk):
             self.lambda_x.set(1.)
             self.lambda_y.set(0.)
             self.eps_s.set(0.1)
-            self.eps_w.set(0.)
+            self.eps_W1.set(0.)
+            self.eps_W2.set(0.)
             self.eps_y.set(0.)
         Button(self, text="Inference", command=set_inference).pack(side=LEFT)
 
@@ -96,7 +102,8 @@ class GUI(Tk):
             self.lambda_x.set(1.)
             self.lambda_y.set(1.)
             self.eps_s.set(0.5)
-            self.eps_w.set(0.1)
+            self.eps_W1.set(0.1)
+            self.eps_W2.set(0.1)
             self.eps_y.set(0.1)
         Button(self, text="Learning", command=set_learning).pack(side=LEFT)
 
@@ -152,10 +159,11 @@ class GUI(Tk):
                 lambda_x = self.lambda_x.get()
                 lambda_y = self.lambda_y.get()
                 eps_s = self.eps_s.get()
-                eps_w = self.eps_w.get()
+                eps_W1 = self.eps_W1.get()
+                eps_W2 = self.eps_W2.get()
                 eps_y = self.eps_y.get()
 
-                [energy, prediction, error_rate, square_loss] = self.inference_step(lambda_x, lambda_y, eps_s, eps_w, eps_y)
+                [energy, prediction, error_rate, square_loss] = self.inference_step(lambda_x, lambda_y, eps_s, eps_W1, eps_W2, eps_y)
 
                 print("energy = %f" % (energy))
                 

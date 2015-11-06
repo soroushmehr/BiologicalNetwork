@@ -158,7 +158,8 @@ class Network(object):
         lambda_x = T.dscalar('lambda_x')
         lambda_y = T.dscalar('lambda_y')
         epsilon_states = T.dscalar('epsilon_states')
-        epsilon_params = T.dscalar('epsilon_params')
+        epsilon_W1 = T.dscalar('epsilon_W1')
+        epsilon_W2 = T.dscalar('epsilon_W2')
         epsilon_y = T.dscalar('epsilon_y')
 
         x_delta = (1 - lambda_x) * epsilon_states * x_dot + lambda_x * (self.x_data - self.x)
@@ -171,16 +172,16 @@ class Network(object):
         h_new = self.h + h_delta
         y_new = self.y + y_delta
 
-        bx_new = self.bx + epsilon_params * bx_delta
-        W1_new = self.W1 + epsilon_params * W1_delta
-        bh_new = self.bh + epsilon_params * bh_delta
-        W2_new = self.W2 + epsilon_params * W2_delta
-        by_new = self.by + epsilon_params * by_delta
+        bx_new = self.bx + epsilon_W1 * bx_delta
+        W1_new = self.W1 + epsilon_W1 * W1_delta
+        bh_new = self.bh + epsilon_W1 * bh_delta
+        W2_new = self.W2 + epsilon_W2 * W2_delta
+        by_new = self.by + epsilon_W2 * by_delta
 
         updates = [(self.x,x_new), (self.h,h_new), (self.y,y_new), (self.bx,bx_new), (self.W1,W1_new), (self.bh,bh_new), (self.W2,W2_new), (self.by,by_new)]
 
         inference_step = theano.function(
-            inputs=[lambda_x, lambda_y, epsilon_states, epsilon_params, epsilon_y],
+            inputs=[lambda_x, lambda_y, epsilon_states, epsilon_W1, epsilon_W2, epsilon_y],
             outputs=[self.energy(), self.prediction, self.error_rate, self.square_loss],
             updates=updates
         )
