@@ -19,12 +19,13 @@ def dataset():
     return x,y
 
 def rho(x):
-    return theano.tensor.clip(x, 0., 1.)
-    #return T.nnet.sigmoid(x)
+    # return theano.tensor.clip(x, 0., 1.) # hard-sigmoid
+    return T.nnet.sigmoid(x)
 
 def rho_prime(x):
-    return (x > 0.) * (x < 1.)
-    #return T.grad(rho(x),x)
+    # return (x > 0.) * (x < 1.) # hard-sigmoid
+    y = T.nnet.sigmoid(x)
+    return y * (1 - y)
 
 class Network(object):
 
