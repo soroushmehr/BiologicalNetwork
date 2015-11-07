@@ -38,10 +38,11 @@ for epoch in range(n_epochs):
         # INFERENCE
         for k in range(n_inference_steps):
             [energy, prediction, error, loss] = net.iterative_step(lambda_x = 1., lambda_y = 0., epsilon_x = eps_inference, epsilon_h = eps_inference, epsilon_y = eps_inference, epsilon_W1 = 0., epsilon_W2 = 0.)
+            mean_energy = np.mean(energy)
             error_rate = np.mean(train_errors+[error])
             loss_rate = np.mean(train_loss+[loss])
             duration = (time.clock() - start_time) / 60.
-            stdout.write("\rep %i, ba %i, %i, error %f, loss %f, dur %f min" % (epoch, index, k, error_rate, loss_rate, duration))
+            stdout.write("\r %i-%i-%i, energy = %f, error = %f, loss = %f, %f mn" % (epoch, index, k, mean_energy, error_rate, loss_rate, duration))
             stdout.flush()
             if k==n_inference_steps-1:
                 train_errors.append(error)
