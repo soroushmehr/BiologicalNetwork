@@ -36,29 +36,29 @@ def mnist():
     return datasets
 
 def rho(x):
-    # return T.clip(x, 0., 1.) # hard-sigmoid
-    return T.nnet.sigmoid(x)
+    return T.clip(x, 0., 1.) # hard-sigmoid
+    # return T.nnet.sigmoid(x)
 
 def rho_prime(x):
-    # return (x > 0.) * (x < 1.) # hard-sigmoid
-    y = T.nnet.sigmoid(x)
-    return y * (1 - y)
-
-    return 
+    return (x > 0.) * (x < 1.) # hard-sigmoid
+    # y = T.nnet.sigmoid(x)
+    # return y * (1 - y)
 
 class Network(object):
 
-    def __init__(self, batch_size=1):
+    def __init__(self, path="params.save", batch_size=1):
+
+        self.path = path
 
         # LOAD/INITIALIZE PARAMETERS
-        if not os.path.isfile("params.save"):
+        if not os.path.isfile(self.path):
             bx_values = np.zeros((28*28,), dtype=theano.config.floatX)
             W1_values = initialize_layer(28*28, 500)
             bh_values = np.zeros((500,), dtype=theano.config.floatX)
             W2_values = initialize_layer(500, 10)
             by_values = np.zeros((10,), dtype=theano.config.floatX)
         else:
-            [bx_values, W1_values, bh_values, W2_values, by_values] = load("params.save")
+            [bx_values, W1_values, bh_values, W2_values, by_values] = load(self.path)
 
         self.bx = theano.shared(value=bx_values, name='bx', borrow=True)
         self.W1 = theano.shared(value=W1_values, name='W1', borrow=True)
@@ -88,14 +88,16 @@ class Network(object):
 
         self.states = [self.x_data, self.x, self.h, self.y, self.y_data_one_hot]
 
-        #self.theano_rng = RandomStreams(self.rng.randint(2 ** 30))
+        #self.theano_rng = RandomStreams(self.rng.randint(2 ** 30)) # will be used when introducing noise in Langevin MCMC
 
         self.prediction  = T.argmax(self.y, axis=1)
         self.error_rate  = T.mean(T.neq(self.prediction, self.y_data))
         self.square_loss = T.mean(((self.y - self.y_data_one_hot) ** 2).sum(axis=1))
 
+        self.iterative_step = self.build_iterative_step()
+
     def save(self):
-        f = file("params.save", 'wb')
+        f = file(self.path, 'wb')
         params = [param.get_value() for param in self.params]
         cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
         f.close()
@@ -124,49 +126,55 @@ class Network(object):
         bi  = - T.batched_dot( T.dot(rho_x, self.W1), rho_h ) - T.batched_dot( T.dot(rho_h, self.W2), rho_y )
         return  square_norm+uni+bi
 
-    def states_dot(self):
-        rho_x = rho(self.x)
-        rho_h = rho(self.h)
-        rho_y = rho(self.y)
 
-        x_pressure = rho_prime(self.x) * (T.dot(rho_h, self.W1.T) + self.bx)
-        x_dot = x_pressure - self.x
-        h_pressure = rho_prime(self.h) * (T.dot(rho_x, self.W1) + T.dot(rho_y, self.W2.T) + self.bh)
-        h_dot = h_pressure - self.h
-        y_pressure = rho_prime(self.y) * (T.dot(rho_h, self.W2) + self.by)
-        y_dot = y_pressure - self.y
+    def build_iterative_step(self):
 
-        return [x_dot, h_dot, y_dot]
+        def states_dot(lambda_x, lambda_y):
+            rho_x = rho(self.x)
+            rho_h = rho(self.h)
+            rho_y = rho(self.y)
 
-    def params_delta(self, x_delta, h_delta, y_delta):
-        rho_x = rho(self.x)
-        rho_h = rho(self.h)
-        rho_y = rho(self.y)
+            x_pressure = rho_prime(self.x) * (T.dot(rho_h, self.W1.T) + self.bx)
+            x_pressure_final = lambda_x * self.x_data + (1 - lambda_x) * x_pressure
+            x_dot = x_pressure_final - self.x
 
-        bx_delta = T.mean(x_delta, axis=0)
-        W1_delta = (T.dot(x_delta.T, rho_h) + T.dot(rho_x.T, h_delta)) / self.x.shape[0]
-        bh_delta = T.mean(h_delta, axis=0)
-        W2_delta = (T.dot(h_delta.T, rho_y) + T.dot(rho_h.T, y_delta)) / self.x.shape[0]
-        by_delta = T.mean(y_delta, axis=0)
+            h_pressure = rho_prime(self.h) * (T.dot(rho_x, self.W1) + T.dot(rho_y, self.W2.T) + self.bh)
+            h_dot = h_pressure - self.h
 
-        return [bx_delta, W1_delta, bh_delta, W2_delta, by_delta]
+            y_pressure = rho_prime(self.y) * (T.dot(rho_h, self.W2) + self.by)
+            y_pressure_final = lambda_y * self.y_data_one_hot + (1 - lambda_y) * y_pressure
+            y_dot = y_pressure_final - self.y
 
-    def build_inference_step(self):
+            return [x_dot, h_dot, y_dot]
 
-        [x_dot, h_dot, y_dot] = self.states_dot()
+        def params_delta(x_delta, h_delta, y_delta):
+            rho_x = rho(self.x)
+            rho_h = rho(self.h)
+            rho_y = rho(self.y)
+
+            bx_delta = T.mean(x_delta, axis=0)
+            W1_delta = (T.dot(x_delta.T, rho_h) + T.dot(rho_x.T, h_delta)) / self.x.shape[0]
+            bh_delta = T.mean(h_delta, axis=0)
+            W2_delta = (T.dot(h_delta.T, rho_y) + T.dot(rho_h.T, y_delta)) / self.x.shape[0]
+            by_delta = T.mean(y_delta, axis=0)
+
+            return [bx_delta, W1_delta, bh_delta, W2_delta, by_delta]
 
         lambda_x = T.dscalar('lambda_x')
         lambda_y = T.dscalar('lambda_y')
-        epsilon_states = T.dscalar('epsilon_states')
+        epsilon_x = T.dscalar('epsilon_x')
+        epsilon_h = T.dscalar('epsilon_h')
+        epsilon_y = T.dscalar('epsilon_y')
         epsilon_W1 = T.dscalar('epsilon_W1')
         epsilon_W2 = T.dscalar('epsilon_W2')
-        epsilon_y = T.dscalar('epsilon_y')
 
-        x_delta = (1 - lambda_x) * epsilon_states * x_dot + lambda_x * (self.x_data - self.x)
-        h_delta = epsilon_states * h_dot
-        y_delta = (1 - lambda_y) * epsilon_states * y_dot + lambda_y * epsilon_y * (self.y_data_one_hot - self.y)
+        [x_dot, h_dot, y_dot] = states_dot(lambda_x, lambda_y)
 
-        [bx_delta, W1_delta, bh_delta, W2_delta, by_delta] = self.params_delta(x_delta, h_delta, y_delta)
+        x_delta = epsilon_x * x_dot
+        h_delta = epsilon_h * h_dot
+        y_delta = epsilon_y * y_dot
+
+        [bx_delta, W1_delta, bh_delta, W2_delta, by_delta] = params_delta(x_delta, h_delta, y_delta)
 
         x_new = self.x + x_delta
         h_new = self.h + h_delta
@@ -180,10 +188,10 @@ class Network(object):
 
         updates = [(self.x,x_new), (self.h,h_new), (self.y,y_new), (self.bx,bx_new), (self.W1,W1_new), (self.bh,bh_new), (self.W2,W2_new), (self.by,by_new)]
 
-        inference_step = theano.function(
-            inputs=[lambda_x, lambda_y, epsilon_states, epsilon_W1, epsilon_W2, epsilon_y],
+        iterative_step = theano.function(
+            inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h, epsilon_y, epsilon_W1, epsilon_W2],
             outputs=[self.energy(), self.prediction, self.error_rate, self.square_loss],
             updates=updates
         )
 
-        return inference_step
+        return iterative_step

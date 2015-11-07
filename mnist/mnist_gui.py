@@ -1,6 +1,6 @@
 from Tkinter import *
 
-from biologicalnetwork import *
+from mnist_model import *
 
 import numpy as np
 from PIL import Image
@@ -14,14 +14,11 @@ class GUI(Tk):
 
         Tk.__init__(self, None)
 
-        self.title('Biological Network')
+        self.title('Biological Network for MNIST')
         self.net = Network(batch_size=1)
-        self.inference_step = self.net.build_inference_step()
 
-        self.canvas = Canvas(self, width=600, height=500)
+        self.canvas = Canvas(self, width=800, height=500)
         self.canvas.pack(side=BOTTOM)
-
-        self.update_canvas(first_time=True)
 
         # START BUTTON
         self.running = False
@@ -37,17 +34,17 @@ class GUI(Tk):
         # FREQUENCY OF UPDATES
         Label(self, text="latency").pack(side=LEFT)
         self.latency = DoubleVar()
-        self.latency.set(1.)
+        self.latency.set(.1)
         Entry(self, textvariable=self.latency, width=5).pack(side=LEFT)
 
-        # INDEX OF TEST EXAMPLE IN THE TEST SET
+        # INDEX OF TEST EXAMPLE (IN THE TRAINING SET)
         Label(self, text="image").pack(side=LEFT)
         self.index = IntVar()
         self.index.set(0)
         Entry(self, textvariable=self.index, width=5).pack(side=LEFT)
 
 
-        # INFERENCE PARAMETERS
+        # PARAMETERS OF THE ITERATIVE PROCEDURE
 
         Label(self, text="lambda_x").pack(side=LEFT)
         self.lambda_x = DoubleVar()
@@ -59,25 +56,30 @@ class GUI(Tk):
         self.lambda_y.set(0.)
         Entry(self, textvariable=self.lambda_y, width=5).pack(side=LEFT)
 
-        Label(self, text="eps_s").pack(side=LEFT)
-        self.eps_s = DoubleVar()
-        self.eps_s.set(0.1)
-        Entry(self, textvariable=self.eps_s, width=5).pack(side=LEFT)
+        Label(self, text="eps_x").pack(side=LEFT)
+        self.eps_x = DoubleVar()
+        self.eps_x.set(.1)
+        Entry(self, textvariable=self.eps_x, width=5).pack(side=LEFT)
+
+        Label(self, text="eps_h").pack(side=LEFT)
+        self.eps_h = DoubleVar()
+        self.eps_h.set(.1)
+        Entry(self, textvariable=self.eps_h, width=5).pack(side=LEFT)
+
+        Label(self, text="eps_y").pack(side=LEFT)
+        self.eps_y = DoubleVar()
+        self.eps_y.set(.1)
+        Entry(self, textvariable=self.eps_y, width=5).pack(side=LEFT)
 
         Label(self, text="eps_W1").pack(side=LEFT)
         self.eps_W1 = DoubleVar()
         self.eps_W1.set(0.)
-        Entry(self, textvariable=self.eps_w, width=5).pack(side=LEFT)
+        Entry(self, textvariable=self.eps_W1, width=5).pack(side=LEFT)
 
         Label(self, text="eps_W2").pack(side=LEFT)
         self.eps_W2 = DoubleVar()
         self.eps_W2.set(0.)
-        Entry(self, textvariable=self.eps_w, width=5).pack(side=LEFT)
-
-        Label(self, text="eps_y").pack(side=LEFT)
-        self.eps_y = DoubleVar()
-        self.eps_y.set(0.)
-        Entry(self, textvariable=self.eps_y, width=5).pack(side=LEFT)
+        Entry(self, textvariable=self.eps_W2, width=5).pack(side=LEFT)
 
 
         # CLAMP BUTTON
@@ -91,22 +93,27 @@ class GUI(Tk):
         def set_inference():
             self.lambda_x.set(1.)
             self.lambda_y.set(0.)
-            self.eps_s.set(0.1)
+            self.eps_x.set(.1)
+            self.eps_h.set(.1)
+            self.eps_y.set(.1)
             self.eps_W1.set(0.)
             self.eps_W2.set(0.)
-            self.eps_y.set(0.)
         Button(self, text="Inference", command=set_inference).pack(side=LEFT)
 
         # LEARNING BUTTON
         def set_learning():
             self.lambda_x.set(1.)
             self.lambda_y.set(1.)
-            self.eps_s.set(0.5)
+            self.eps_x.set(.1)
+            self.eps_h.set(.1)
+            self.eps_y.set(.5)
             self.eps_W1.set(0.1)
             self.eps_W2.set(0.1)
-            self.eps_y.set(0.1)
         Button(self, text="Learning", command=set_learning).pack(side=LEFT)
 
+        [self.energy, self.prediction, self.error_rate, self.square_loss] = self.net.iterative_step(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., epsilon_W1=0., epsilon_W2=0.)
+
+        self.update_canvas(first_time=True)
 
         Thread(target = self.run).start()
 
@@ -134,18 +141,26 @@ class GUI(Tk):
         y_data_one_hot_img=Image.fromarray(y_data_one_hot_mat).resize((250,25))
         self.y_data_one_hot_imgTk=ImageTk.PhotoImage(y_data_one_hot_img)
 
+
+
         if first_time:
-            self.y_data_one_hot_img_canvas = self.canvas.create_image(300, 50,  image = self.y_data_one_hot_imgTk)
-            self.y_img_canvas              = self.canvas.create_image(300, 100, image = self.y_imgTk)
-            self.h_img_canvas              = self.canvas.create_image(300, 150, image = self.h_imgTk)
-            self.x_img_canvas              = self.canvas.create_image(300, 250, image = self.x_imgTk)
-            self.x_data_img_canvas         = self.canvas.create_image(300, 400, image = self.x_data_imgTk)
+            self.y_data_one_hot_img_canvas = self.canvas.create_image(400, 50,  image = self.y_data_one_hot_imgTk)
+            self.y_img_canvas              = self.canvas.create_image(400, 100, image = self.y_imgTk)
+            self.h_img_canvas              = self.canvas.create_image(400, 150, image = self.h_imgTk)
+            self.x_img_canvas              = self.canvas.create_image(400, 250, image = self.x_imgTk)
+            self.x_data_img_canvas         = self.canvas.create_image(400, 400, image = self.x_data_imgTk)
+            self.energy_canvas             = self.canvas.create_text(20, 100, anchor=W, font="Purisa", text="Energy = "+str(self.energy[0]))
+            self.prediction_canvas         = self.canvas.create_text(20, 200, anchor=W, font="Purisa", text="Prediction = "+str(self.prediction[0]))
+            self.loss_canvas               = self.canvas.create_text(20, 300, anchor=W, font="Purisa", text="Square Loss = "+str(self.square_loss))
         else:
             self.canvas.itemconfig(self.y_data_one_hot_img_canvas, image = self.y_data_one_hot_imgTk)
             self.canvas.itemconfig(self.y_img_canvas,              image = self.y_imgTk)
             self.canvas.itemconfig(self.h_img_canvas,              image = self.h_imgTk)
             self.canvas.itemconfig(self.x_img_canvas,              image = self.x_imgTk)
             self.canvas.itemconfig(self.x_data_img_canvas,         image = self.x_data_imgTk)
+            self.canvas.itemconfig(self.energy_canvas,             text="Energy = "+str(self.energy[0]))
+            self.canvas.itemconfig(self.prediction_canvas,         text="Prediction = "+str(self.prediction[0]))
+            self.canvas.itemconfig(self.loss_canvas,               text="Square Loss = "+str(self.square_loss))
 
     def run(self):
 
@@ -158,14 +173,13 @@ class GUI(Tk):
 
                 lambda_x = self.lambda_x.get()
                 lambda_y = self.lambda_y.get()
-                eps_s = self.eps_s.get()
+                eps_x = self.eps_x.get()
+                eps_h = self.eps_h.get()
+                eps_y = self.eps_y.get()
                 eps_W1 = self.eps_W1.get()
                 eps_W2 = self.eps_W2.get()
-                eps_y = self.eps_y.get()
 
-                [energy, prediction, error_rate, square_loss] = self.inference_step(lambda_x, lambda_y, eps_s, eps_W1, eps_W2, eps_y)
-
-                print("energy = %f" % (energy))
+                [self.energy, self.prediction, self.error_rate, self.square_loss] = self.net.iterative_step(lambda_x, lambda_y, eps_x, eps_h, eps_y, eps_W1, eps_W2)
                 
                 self.update_canvas()
                 time.sleep(self.latency.get())
