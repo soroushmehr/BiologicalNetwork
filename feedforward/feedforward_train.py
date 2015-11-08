@@ -1,4 +1,4 @@
-from feedforward import *
+from feedforward_model import *
 
 import numpy as np
 from sys import stdout
