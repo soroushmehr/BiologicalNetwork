@@ -141,28 +141,26 @@ class GUI(Tk):
         y_data_one_hot_img=Image.fromarray(y_data_one_hot_mat).resize((250,25))
         self.y_data_one_hot_imgTk=ImageTk.PhotoImage(y_data_one_hot_img)
 
-
-
         if first_time:
             self.y_data_one_hot_img_canvas = self.canvas.create_image(400, 50,  image = self.y_data_one_hot_imgTk)
             self.y_img_canvas              = self.canvas.create_image(400, 100, image = self.y_imgTk)
             self.h_img_canvas              = self.canvas.create_image(400, 150, image = self.h_imgTk)
             self.x_img_canvas              = self.canvas.create_image(400, 250, image = self.x_imgTk)
             self.x_data_img_canvas         = self.canvas.create_image(400, 400, image = self.x_data_imgTk)
-            self.energy_canvas             = self.canvas.create_text(20, 100, anchor=W, font="Purisa", text="Energy = "+str(self.energy[0]))
-            self.norm_grad_canvas          = self.canvas.create_text(20, 200, anchor=W, font="Purisa", text="Norm Gradient = "+str(self.norm_grad))
-            self.prediction_canvas         = self.canvas.create_text(20, 300, anchor=W, font="Purisa", text="Prediction = "+str(self.prediction[0]))
-            self.loss_canvas               = self.canvas.create_text(20, 400, anchor=W, font="Purisa", text="Square Loss = "+str(self.square_loss))
+            self.energy_canvas             = self.canvas.create_text(  20, 100, anchor=W, font="Purisa", text  = "Energy = %.1f"        % (self.energy[0]))
+            self.norm_grad_canvas          = self.canvas.create_text(  20, 200, anchor=W, font="Purisa", text  = "Norm Gradient = %.1f" % (self.norm_grad))
+            self.prediction_canvas         = self.canvas.create_text(  20, 300, anchor=W, font="Purisa", text  = "Prediction = %i"      % (self.prediction[0]))
+            self.loss_canvas               = self.canvas.create_text(  20, 400, anchor=W, font="Purisa", text  = "Square Loss = %.4f"   % (self.square_loss))
         else:
             self.canvas.itemconfig(self.y_data_one_hot_img_canvas, image = self.y_data_one_hot_imgTk)
             self.canvas.itemconfig(self.y_img_canvas,              image = self.y_imgTk)
             self.canvas.itemconfig(self.h_img_canvas,              image = self.h_imgTk)
             self.canvas.itemconfig(self.x_img_canvas,              image = self.x_imgTk)
             self.canvas.itemconfig(self.x_data_img_canvas,         image = self.x_data_imgTk)
-            self.canvas.itemconfig(self.energy_canvas,             text="Energy = "+str(self.energy[0]))
-            self.canvas.itemconfig(self.norm_grad_canvas,          text="Norm Gradient = "+str(self.norm_grad))
-            self.canvas.itemconfig(self.prediction_canvas,         text="Prediction = "+str(self.prediction[0]))
-            self.canvas.itemconfig(self.loss_canvas,               text="Square Loss = "+str(self.square_loss))
+            self.canvas.itemconfig(self.energy_canvas,             text  = "Energy = %.1f"        % (self.energy[0]))
+            self.canvas.itemconfig(self.norm_grad_canvas,          text  = "Norm Gradient = %.1f" % (self.norm_grad))
+            self.canvas.itemconfig(self.prediction_canvas,         text  = "Prediction = %i"      % (self.prediction[0]))
+            self.canvas.itemconfig(self.loss_canvas,               text  = "Square Loss = %.4f"   % (self.square_loss))
 
     def run(self):
 

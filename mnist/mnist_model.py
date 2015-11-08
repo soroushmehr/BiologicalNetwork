@@ -19,7 +19,6 @@ def initialize_layer(n_in, n_out):
         ),
         dtype=theano.config.floatX
     )
-    W_values *= 4
 
     return W_values
 
@@ -36,13 +35,16 @@ def mnist():
     return datasets
 
 def rho(x):
-    return T.clip(x, 0., 1.) # hard-sigmoid
-    # return T.nnet.sigmoid(x)
+    # return T.clip(x, 0., 1.)   # hard-sigmoid
+    # return T.nnet.sigmoid(x-2) # sigmoid
+    return T.tanh(x)           # hyperbolic tangent
 
 def rho_prime(x):
-    return (x > 0.) * (x < 1.) # hard-sigmoid
-    # y = T.nnet.sigmoid(x)
-    # return y * (1 - y)
+    # return (x > 0.) * (x < 1.) # hard-sigmoid
+    # y = T.nnet.sigmoid(x-2)    # sigmoid
+    # return y * (1 - y)         # sigmoid
+    y = T.tanh(x)              # hyperbolic tangent
+    return 1 - y ** 2          # hyperbolic tangent
 
 class Network(object):
 
@@ -55,7 +57,7 @@ class Network(object):
             bx_values = np.zeros((28*28,), dtype=theano.config.floatX)
             W1_values = initialize_layer(28*28, 500)
             bh_values = np.zeros((500,), dtype=theano.config.floatX)
-            W2_values = initialize_layer(500, 10)
+            W2_values = np.zeros((500,10), dtype=theano.config.floatX)
             by_values = np.zeros((10,), dtype=theano.config.floatX)
         else:
             [bx_values, W1_values, bh_values, W2_values, by_values] = load(self.path)

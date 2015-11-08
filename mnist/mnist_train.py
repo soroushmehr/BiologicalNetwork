@@ -10,7 +10,7 @@ n_epochs = 100
 
 
 # parameters for the x-clamped relaxation phase
-n_relaxation_steps = 30
+eps = .1  # common value for eps_x, eps_h and eps_y during the relaxation
 
 # parameters for the learning phase
 eps_h = .1
@@ -28,6 +28,15 @@ print("path = %s, batch_size = %i" % (path, batch_size))
 start_time = time.clock()
 for epoch in range(n_epochs):
 
+    if epoch < 25:
+        n_relaxation_steps = 10
+    elif epoch < 50:
+        n_relaxation_steps = 15
+    elif epoch < 75:
+        n_relaxation_steps = 20
+    else:
+        n_relaxation_steps = 25
+
     # TRAINING
     train_errors = []
     train_loss = []
@@ -36,13 +45,12 @@ for epoch in range(n_epochs):
 
         # X-CLAMPED RELAXATION PHASE
         for k in range(n_relaxation_steps):
-            eps = 1./(5+k)
             [energy, norm_grad, prediction, error, loss] = net.iterative_step(lambda_x = 1., lambda_y = 0., epsilon_x = eps, epsilon_h = eps, epsilon_y = eps, epsilon_W1 = 0., epsilon_W2 = 0.)
             mean_energy = np.mean(energy)
             error_rate = np.mean(train_errors+[error])
             loss_rate = np.mean(train_loss+[loss])
             duration = (time.clock() - start_time) / 60.
-            stdout.write("\r %i-%i-%i, E = %.1f, norm = %.1f, error = %.4f, loss = %.4f, %.1f mn" % (epoch, index, k, mean_energy, norm_grad, error_rate, loss_rate, duration))
+            stdout.write("\r %i-%i-%i, E = %.1f, norm = %.1f, error = %.4f, loss = %.4f, %.1f min" % (epoch, index, k, mean_energy, norm_grad, error_rate, loss_rate, duration))
             stdout.flush()
             if k == n_relaxation_steps-1:
                 train_errors.append(error)
