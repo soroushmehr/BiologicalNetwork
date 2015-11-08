@@ -5,13 +5,14 @@ from sys import stdout
 import time
 
 path = "params.save"
-batch_size = 1000
+batch_size = 100
 n_epochs = 100
-n_inference_steps = 10
-#n_learning_steps = 2
 
-# parameters for the inference phase
-eps_inference = .1 # value of epsilon_x, epsilon_h and epsilon_y
+
+# parameters for the x-clamped relaxation phase
+n_relaxation_steps = 30
+eps_relaxation = .5 # common value for epsilon_x, epsilon_h and epsilon_y
+threshold = 10. # threshold for the norm of the gradient
 
 # parameters for the learning phase
 eps_h = .1
@@ -35,23 +36,29 @@ for epoch in range(n_epochs):
     for index in range(n_batches_train):
         net.clamp(index=index)
 
-        # INFERENCE
-        for k in range(n_inference_steps):
-            [energy, prediction, error, loss] = net.iterative_step(lambda_x = 1., lambda_y = 0., epsilon_x = eps_inference, epsilon_h = eps_inference, epsilon_y = eps_inference, epsilon_W1 = 0., epsilon_W2 = 0.)
-            mean_energy = np.mean(energy)
+        eps = eps_relaxation # common value for epsilon_x, epsilon_h and epsilon_y
+        energy_old = 1000000.
+
+        # X-CLAMPED RELAXATION PHASE
+        for k in range(n_relaxation_steps):
+            [energy, norm_grad, prediction, error, loss] = net.iterative_step(lambda_x = 1., lambda_y = 0., epsilon_x = eps, epsilon_h = eps, epsilon_y = eps, epsilon_W1 = 0., epsilon_W2 = 0.)
+            mean_energy = np.mean(energy)            
             error_rate = np.mean(train_errors+[error])
             loss_rate = np.mean(train_loss+[loss])
             duration = (time.clock() - start_time) / 60.
-            stdout.write("\r %i-%i-%i, energy = %f, error = %f, loss = %f, %f mn" % (epoch, index, k, mean_energy, error_rate, loss_rate, duration))
+            stdout.write("\r %i-%i-%i, energy = %f, norm_grad = %f, error = %f, loss = %f, %f mn" % (epoch, index, k, mean_energy, norm_grad, error_rate, loss_rate, duration))
             stdout.flush()
-            if k==n_inference_steps-1:
+            if norm_grad < threshold:
                 train_errors.append(error)
                 train_loss.append(loss)
+                break
+            if mean_energy > energy_old:
+                eps /= 2.
+            energy_old = mean_energy
 
-        # LEARNING
-        #for k in range(n_learning_steps):
+        # LEARNING PHASE
         net.iterative_step(lambda_x = 1., lambda_y = 1., epsilon_x = .1, epsilon_h = eps_h, epsilon_y = eps_y, epsilon_W1 = 0., epsilon_W2 = eps_W2)
-        net.iterative_step(lambda_x = 1., lambda_y = 1., epsilon_x = .1, epsilon_h = eps_h, epsilon_y = eps_y, epsilon_W1 = eps_W1, epsilon_W2 = 0.)
+        #net.iterative_step(lambda_x = 1., lambda_y = 1., epsilon_x = .1, epsilon_h = eps_h, epsilon_y = eps_y, epsilon_W1 = eps_W1, epsilon_W2 = 0.)
 
     stdout.write("\n")
     net.save()

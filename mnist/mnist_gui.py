@@ -111,7 +111,7 @@ class GUI(Tk):
             self.eps_W2.set(0.1)
         Button(self, text="Learning", command=set_learning).pack(side=LEFT)
 
-        [self.energy, self.prediction, self.error_rate, self.square_loss] = self.net.iterative_step(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., epsilon_W1=0., epsilon_W2=0.)
+        [self.energy, self.norm_grad, self.prediction, self.error_rate, self.square_loss] = self.net.iterative_step(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., epsilon_W1=0., epsilon_W2=0.)
 
         self.update_canvas(first_time=True)
 
@@ -150,8 +150,9 @@ class GUI(Tk):
             self.x_img_canvas              = self.canvas.create_image(400, 250, image = self.x_imgTk)
             self.x_data_img_canvas         = self.canvas.create_image(400, 400, image = self.x_data_imgTk)
             self.energy_canvas             = self.canvas.create_text(20, 100, anchor=W, font="Purisa", text="Energy = "+str(self.energy[0]))
-            self.prediction_canvas         = self.canvas.create_text(20, 200, anchor=W, font="Purisa", text="Prediction = "+str(self.prediction[0]))
-            self.loss_canvas               = self.canvas.create_text(20, 300, anchor=W, font="Purisa", text="Square Loss = "+str(self.square_loss))
+            self.norm_grad_canvas          = self.canvas.create_text(20, 200, anchor=W, font="Purisa", text="Norm Gradient = "+str(self.norm_grad))
+            self.prediction_canvas         = self.canvas.create_text(20, 300, anchor=W, font="Purisa", text="Prediction = "+str(self.prediction[0]))
+            self.loss_canvas               = self.canvas.create_text(20, 400, anchor=W, font="Purisa", text="Square Loss = "+str(self.square_loss))
         else:
             self.canvas.itemconfig(self.y_data_one_hot_img_canvas, image = self.y_data_one_hot_imgTk)
             self.canvas.itemconfig(self.y_img_canvas,              image = self.y_imgTk)
@@ -159,6 +160,7 @@ class GUI(Tk):
             self.canvas.itemconfig(self.x_img_canvas,              image = self.x_imgTk)
             self.canvas.itemconfig(self.x_data_img_canvas,         image = self.x_data_imgTk)
             self.canvas.itemconfig(self.energy_canvas,             text="Energy = "+str(self.energy[0]))
+            self.canvas.itemconfig(self.norm_grad_canvas,          text="Norm Gradient = "+str(self.norm_grad))
             self.canvas.itemconfig(self.prediction_canvas,         text="Prediction = "+str(self.prediction[0]))
             self.canvas.itemconfig(self.loss_canvas,               text="Square Loss = "+str(self.square_loss))
 
@@ -179,7 +181,7 @@ class GUI(Tk):
                 eps_W1 = self.eps_W1.get()
                 eps_W2 = self.eps_W2.get()
 
-                [self.energy, self.prediction, self.error_rate, self.square_loss] = self.net.iterative_step(lambda_x, lambda_y, eps_x, eps_h, eps_y, eps_W1, eps_W2)
+                [self.energy, self.norm_grad, self.prediction, self.error_rate, self.square_loss] = self.net.iterative_step(lambda_x, lambda_y, eps_x, eps_h, eps_y, eps_W1, eps_W2)
                 
                 self.update_canvas()
                 time.sleep(self.latency.get())

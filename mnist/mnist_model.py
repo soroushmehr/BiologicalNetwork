@@ -188,9 +188,11 @@ class Network(object):
 
         updates = [(self.x,x_new), (self.h,h_new), (self.y,y_new), (self.bx,bx_new), (self.W1,W1_new), (self.bh,bh_new), (self.W2,W2_new), (self.by,by_new)]
 
+        norm_grad = T.sqrt( (h_dot ** 2).mean(axis=0).sum() + (y_dot ** 2).mean(axis=0).sum() )
+
         iterative_step = theano.function(
             inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h, epsilon_y, epsilon_W1, epsilon_W2],
-            outputs=[self.energy(), self.prediction, self.error_rate, self.square_loss],
+            outputs=[self.energy(), norm_grad, self.prediction, self.error_rate, self.square_loss],
             updates=updates
         )
 
