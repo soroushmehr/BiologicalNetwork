@@ -5,12 +5,13 @@ from sys import stdout
 import time
 
 path = "params.save"
-batch_size = 1000
+batch_size = 100
 n_epochs = 500
 
 
 # parameters for the x-clamped relaxation phase
-n_iterations = 30 # 
+n_iterations = 30 # maximum number of iterations
+threshold = .1 # threshold for the norm of grad_hy E to decide when we have reached a fixed point
 
 # parameters for the learning phase
 eps_h  = .1
@@ -44,9 +45,10 @@ for epoch in range(n_epochs):
             duration = (time.clock() - start_time) / 60.
             stdout.write("\r %i-%i-%i, E = %.1f, norm = %.1f, error = %.2f%%, MSE = %.4f, %.1f min" % (epoch, index, k, mean_energy, norm_grad, error_rate, cost, duration))
             stdout.flush()
-            if norm_grad < 0.1 or k == n_iterations-1:
+            if norm_grad < threshold or k == n_iterations-1:
                 train_errors.append(error)
                 train_cost.append(mse)
+                break
 
         # LEARNING PHASE
         net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, epsilon_W1 = 0., epsilon_W2 = eps_W2)
