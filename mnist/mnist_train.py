@@ -6,16 +6,16 @@ import time
 
 path = "params.save"
 batch_size = 1000
-n_epochs = 100
+n_epochs = 500
 
 
 # parameters for the x-clamped relaxation phase
-eps = .1  # common value for eps_x, eps_h and eps_y during the relaxation
+n_iterations = 30 # 
 
 # parameters for the learning phase
-eps_h = .1
-eps_y = .5
-eps_W1 = .1
+eps_h  = .1
+eps_y  = .5
+eps_W1 = 1.
 eps_W2 = .1
 
 
@@ -28,37 +28,29 @@ print("path = %s, batch_size = %i" % (path, batch_size))
 start_time = time.clock()
 for epoch in range(n_epochs):
 
-    if epoch < 25:
-        n_relaxation_steps = 10
-    elif epoch < 50:
-        n_relaxation_steps = 15
-    elif epoch < 75:
-        n_relaxation_steps = 20
-    else:
-        n_relaxation_steps = 25
-
     # TRAINING
     train_errors = []
-    train_loss = []
+    train_cost = []
     for index in range(n_batches_train):
         net.clamp(index=index)
 
         # X-CLAMPED RELAXATION PHASE
-        for k in range(n_relaxation_steps):
-            [energy, norm_grad, prediction, error, loss] = net.iterative_step(lambda_x = 1., lambda_y = 0., epsilon_x = eps, epsilon_h = eps, epsilon_y = eps, epsilon_W1 = 0., epsilon_W2 = 0.)
+        for k in range(n_iterations):
+            eps = 2. / (2.+k) # common value for eps_h and eps_y
+            [energy, norm_grad, prediction, error, mse] = net.iterate(lambda_x = 1., lambda_y = 0., epsilon_x = 0., epsilon_h = eps, epsilon_y = eps, epsilon_W1 = 0., epsilon_W2 = 0.)
             mean_energy = np.mean(energy)
-            error_rate = np.mean(train_errors+[error])
-            loss_rate = np.mean(train_loss+[loss])
+            error_rate = 100. * np.mean(train_errors+[error])
+            cost = np.mean(train_cost+[mse])
             duration = (time.clock() - start_time) / 60.
-            stdout.write("\r %i-%i-%i, E = %.1f, norm = %.1f, error = %.4f, loss = %.4f, %.1f min" % (epoch, index, k, mean_energy, norm_grad, error_rate, loss_rate, duration))
+            stdout.write("\r %i-%i-%i, E = %.1f, norm = %.1f, error = %.2f%%, MSE = %.4f, %.1f min" % (epoch, index, k, mean_energy, norm_grad, error_rate, cost, duration))
             stdout.flush()
-            if k == n_relaxation_steps-1:
+            if norm_grad < 0.1 or k == n_iterations-1:
                 train_errors.append(error)
-                train_loss.append(loss)
+                train_cost.append(mse)
 
         # LEARNING PHASE
-        net.iterative_step(lambda_x = 1., lambda_y = 1., epsilon_x = .1, epsilon_h = eps_h, epsilon_y = eps_y, epsilon_W1 = 0., epsilon_W2 = eps_W2)
-        #net.iterative_step(lambda_x = 1., lambda_y = 1., epsilon_x = .1, epsilon_h = eps_h, epsilon_y = eps_y, epsilon_W1 = eps_W1, epsilon_W2 = 0.)
+        net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, epsilon_W1 = 0., epsilon_W2 = eps_W2)
+        net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, epsilon_W1 = eps_W1, epsilon_W2 = 0.)
 
     stdout.write("\n")
     net.save()

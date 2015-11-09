@@ -88,15 +88,13 @@ class Network(object):
 
         self.clamp(index=0)
 
-        self.states = [self.x_data, self.x, self.h, self.y, self.y_data_one_hot]
-
         #self.theano_rng = RandomStreams(self.rng.randint(2 ** 30)) # will be used when introducing noise in Langevin MCMC
 
-        self.prediction  = T.argmax(self.y, axis=1)
-        self.error_rate  = T.mean(T.neq(self.prediction, self.y_data))
-        self.square_loss = T.mean(((self.y - self.y_data_one_hot) ** 2).sum(axis=1))
+        self.prediction = T.argmax(self.y, axis=1)
+        self.error_rate = T.mean(T.neq(self.prediction, self.y_data))
+        self.mse        = T.mean(((self.y - self.y_data_one_hot) ** 2).sum(axis=1))
 
-        self.iterative_step = self.build_iterative_step()
+        self.iterate = self.build_iterative_function()
 
     def save(self):
         f = file(self.path, 'wb')
@@ -123,13 +121,13 @@ class Network(object):
         rho_x = rho(self.x)
         rho_h = rho(self.h)
         rho_y = rho(self.y)
-        square_norm = ( T.batched_dot(self.x,self.x) + T.batched_dot(self.h,self.h) + T.batched_dot(self.y,self.y) ) / 2
-        uni = - T.dot(rho_x, self.bx) - T.dot(rho_h, self.bh) - T.dot(rho_y, self.by)
-        bi  = - T.batched_dot( T.dot(rho_x, self.W1), rho_h ) - T.batched_dot( T.dot(rho_h, self.W2), rho_y )
-        return  square_norm+uni+bi
+        squared_norm = ( T.batched_dot(self.x,self.x) + T.batched_dot(self.h,self.h) + T.batched_dot(self.y,self.y) ) / 2
+        uni_terms    = - T.dot(rho_x, self.bx) - T.dot(rho_h, self.bh) - T.dot(rho_y, self.by)
+        bi_terms     = - T.batched_dot( T.dot(rho_x, self.W1), rho_h ) - T.batched_dot( T.dot(rho_h, self.W2), rho_y )
+        return squared_norm + uni_terms + bi_terms
 
 
-    def build_iterative_step(self):
+    def build_iterative_function(self):
 
         def states_dot(lambda_x, lambda_y):
             rho_x = rho(self.x)
@@ -192,10 +190,10 @@ class Network(object):
 
         norm_grad = T.sqrt( (h_dot ** 2).mean(axis=0).sum() + (y_dot ** 2).mean(axis=0).sum() )
 
-        iterative_step = theano.function(
+        iterative_function = theano.function(
             inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h, epsilon_y, epsilon_W1, epsilon_W2],
-            outputs=[self.energy(), norm_grad, self.prediction, self.error_rate, self.square_loss],
+            outputs=[self.energy(), norm_grad, self.prediction, self.error_rate, self.mse],
             updates=updates
         )
 
-        return iterative_step
+        return iterative_function

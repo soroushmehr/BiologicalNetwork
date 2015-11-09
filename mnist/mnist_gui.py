@@ -111,7 +111,7 @@ class GUI(Tk):
             self.eps_W2.set(0.1)
         Button(self, text="Learning", command=set_learning).pack(side=LEFT)
 
-        [self.energy, self.norm_grad, self.prediction, self.error_rate, self.square_loss] = self.net.iterative_step(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., epsilon_W1=0., epsilon_W2=0.)
+        [self.energy, self.norm_grad, self.prediction, error_rate, self.mse] = self.net.iterate(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., epsilon_W1=0., epsilon_W2=0.)
 
         self.update_canvas(first_time=True)
 
@@ -150,7 +150,7 @@ class GUI(Tk):
             self.energy_canvas             = self.canvas.create_text(  20, 100, anchor=W, font="Purisa", text  = "Energy = %.1f"        % (self.energy[0]))
             self.norm_grad_canvas          = self.canvas.create_text(  20, 200, anchor=W, font="Purisa", text  = "Norm Gradient = %.1f" % (self.norm_grad))
             self.prediction_canvas         = self.canvas.create_text(  20, 300, anchor=W, font="Purisa", text  = "Prediction = %i"      % (self.prediction[0]))
-            self.loss_canvas               = self.canvas.create_text(  20, 400, anchor=W, font="Purisa", text  = "Square Loss = %.4f"   % (self.square_loss))
+            self.mse_canvas                = self.canvas.create_text(  20, 400, anchor=W, font="Purisa", text  = "Squared Error = %.4f" % (self.mse))
         else:
             self.canvas.itemconfig(self.y_data_one_hot_img_canvas, image = self.y_data_one_hot_imgTk)
             self.canvas.itemconfig(self.y_img_canvas,              image = self.y_imgTk)
@@ -160,7 +160,7 @@ class GUI(Tk):
             self.canvas.itemconfig(self.energy_canvas,             text  = "Energy = %.1f"        % (self.energy[0]))
             self.canvas.itemconfig(self.norm_grad_canvas,          text  = "Norm Gradient = %.1f" % (self.norm_grad))
             self.canvas.itemconfig(self.prediction_canvas,         text  = "Prediction = %i"      % (self.prediction[0]))
-            self.canvas.itemconfig(self.loss_canvas,               text  = "Square Loss = %.4f"   % (self.square_loss))
+            self.canvas.itemconfig(self.mse_canvas,                text  = "Squared Error = %.4f" % (self.mse))
 
     def run(self):
 
@@ -179,7 +179,7 @@ class GUI(Tk):
                 eps_W1 = self.eps_W1.get()
                 eps_W2 = self.eps_W2.get()
 
-                [self.energy, self.norm_grad, self.prediction, self.error_rate, self.square_loss] = self.net.iterative_step(lambda_x, lambda_y, eps_x, eps_h, eps_y, eps_W1, eps_W2)
+                [self.energy, self.norm_grad, self.prediction, error_rate, self.mse] = self.net.iterate(lambda_x, lambda_y, eps_x, eps_h, eps_y, eps_W1, eps_W2)
                 
                 self.update_canvas()
                 time.sleep(self.latency.get())
