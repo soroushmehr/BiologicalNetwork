@@ -57,7 +57,7 @@ class Network(object):
             bx_values = np.zeros((28*28,), dtype=theano.config.floatX)
             W1_values = initialize_layer(28*28, 500)
             bh_values = np.zeros((500,), dtype=theano.config.floatX)
-            W2_values = np.zeros((500,10), dtype=theano.config.floatX)
+            W2_values = initialize_layer(500, 10)
             by_values = np.zeros((10,), dtype=theano.config.floatX)
         else:
             [bx_values, W1_values, bh_values, W2_values, by_values] = load(self.path)
@@ -188,11 +188,15 @@ class Network(object):
 
         updates = [(self.x,x_new), (self.h,h_new), (self.y,y_new), (self.bx,bx_new), (self.W1,W1_new), (self.bh,bh_new), (self.W2,W2_new), (self.by,by_new)]
 
-        norm_grad = T.sqrt( (h_dot ** 2).mean(axis=0).sum() + (y_dot ** 2).mean(axis=0).sum() )
+        energy = T.mean(self.energy())
+
+        norm_grad_hy = T.sqrt( (h_dot ** 2).mean(axis=0).sum() + (y_dot ** 2).mean(axis=0).sum() )
+        norm_grad_W1 = T.sqrt( (W1_delta ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
+        norm_grad_W2 = T.sqrt( (W2_delta ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
 
         iterative_function = theano.function(
             inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h, epsilon_y, epsilon_W1, epsilon_W2],
-            outputs=[self.energy(), norm_grad, self.prediction, self.error_rate, self.mse],
+            outputs=[energy, norm_grad_hy, self.prediction, self.error_rate, self.mse, norm_grad_W1, norm_grad_W2],
             updates=updates
         )
 
