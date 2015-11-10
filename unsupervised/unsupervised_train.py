@@ -45,7 +45,7 @@ for epoch in range(n_epochs):
         # FREE RELAXATION PHASE
         for k in range(n_iterations):
             eps = 2. / (2.+k) # common value for eps_h and eps_y
-            [energy, norm_grad, prediction, error, mse] = net.iterate(lambda_x = 0., epsilon_x = eps, epsilon_h = eps, epsilon_W1 = 0.)
+            [energy, norm_grad_x, norm_grad_h, mse] = net.iterate(lambda_x = 0., epsilon_x = eps, epsilon_h = eps, epsilon_W1 = 0.)
             mean_energy = np.mean(energy)
             cost = np.mean(train_cost+[mse])
             duration = (time.clock() - start_time) / 60.
