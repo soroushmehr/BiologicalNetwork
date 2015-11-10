@@ -20,22 +20,8 @@ class GUI(Tk):
         self.canvas = Canvas(self, width=800, height=500)
         self.canvas.pack(side=BOTTOM)
 
-        # START BUTTON
-        self.running = False
-        def onClickStartButton():
-            self.running = not self.running
-            if self.running:
-                startButton.configure(text="Stop")
-            else:
-                startButton.configure(text="Start")
-        startButton = Button(self, text="Start", command=onClickStartButton)
-        startButton.pack(side=LEFT)
-
         # FREQUENCY OF UPDATES
-        Label(self, text="latency").pack(side=LEFT)
-        self.latency = DoubleVar()
-        self.latency.set(.1)
-        Entry(self, textvariable=self.latency, width=5).pack(side=LEFT)
+        self.latency = .1
 
         # INDEX OF TEST EXAMPLE (IN THE TRAINING SET)
         Label(self, text="image").pack(side=LEFT)
@@ -75,6 +61,8 @@ class GUI(Tk):
         # CLAMP BUTTON
         def clamp():
             index = self.index.get()
+            index = max(index,0)
+            index = min(index,49999)
             self.net.clamp(index=index,clear=True)
             self.update_canvas()
         Button(self, text="Clear", command=clamp).pack(side=LEFT)
@@ -134,23 +122,19 @@ class GUI(Tk):
 
         while True:
 
-            while self.running:
+            index = self.index.get() # index of the test example in the test set
+            self.net.clamp(index=index, clear=False)
 
-                index = self.index.get() # index of the test example in the test set
-                self.net.clamp(index=index, clear=False)
+            lambda_x = self.lambda_x.get()
+            lambda_y = self.lambda_y.get()
+            eps_x = self.eps_x.get()
+            eps_h = self.eps_h.get()
+            eps_y = self.eps_y.get()
 
-                lambda_x = self.lambda_x.get()
-                lambda_y = self.lambda_y.get()
-                eps_x = self.eps_x.get()
-                eps_h = self.eps_h.get()
-                eps_y = self.eps_y.get()
-
-                [self.energy, self.norm_grad, self.prediction, error_rate, self.mse, norm_grad_W1, norm_grad_W2] = self.net.iterate(lambda_x, lambda_y, eps_x, eps_h, eps_y, 0., 0.)
-                
-                self.update_canvas()
-                time.sleep(self.latency.get())
-
-            time.sleep(0.2)
+            [self.energy, self.norm_grad, self.prediction, error_rate, self.mse, norm_grad_W1, norm_grad_W2] = self.net.iterate(lambda_x, lambda_y, eps_x, eps_h, eps_y, 0., 0.)
+            
+            self.update_canvas()
+            time.sleep(self.latency)
 
 if __name__ == "__main__":
 
