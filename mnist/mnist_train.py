@@ -14,10 +14,10 @@ n_iterations = 100 # maximum number of iterations
 threshold = .1 # threshold for the norm of grad_hy E to decide when we have reached a fixed point
 
 # parameters for the learning phase
-eps_h  = .5
-eps_y  = .5
-eps_W1 = .2
-eps_W2 = .02
+eps_h  = np.float32(.5)
+eps_y  = np.float32(.5)
+eps_W1 = np.float32(.2)
+eps_W2 = np.float32(.02)
 
 
 
@@ -38,7 +38,7 @@ for epoch in range(n_epochs):
 
         # X-CLAMPED RELAXATION PHASE
         for k in range(n_iterations):
-            eps = 2. / (2.+k) # common value for eps_h and eps_y
+            eps = np.float32(2. / (2.+k)) # common value for eps_h and eps_y
             [energy, norm_grad_hy, _, error, mse, _, _] = net.iterate(lambda_x = 1., lambda_y = 0., epsilon_x = 0., epsilon_h = eps, epsilon_y = eps, epsilon_W1 = 0., epsilon_W2 = 0.)
             if norm_grad_hy < threshold or k == n_iterations-1:
                 train_errors, train_cost, train_energy = train_errors+error, train_cost+mse, train_energy+energy

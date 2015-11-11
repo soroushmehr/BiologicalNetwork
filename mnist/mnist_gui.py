@@ -125,11 +125,11 @@ class GUI(Tk):
             index = self.index.get() # index of the test example in the test set
             self.net.clamp(index=index, clear=False)
 
-            lambda_x = self.lambda_x.get()
-            lambda_y = self.lambda_y.get()
-            eps_x = self.eps_x.get()
-            eps_h = self.eps_h.get()
-            eps_y = self.eps_y.get()
+            lambda_x = np.float32(self.lambda_x.get())
+            lambda_y = np.float32(self.lambda_y.get())
+            eps_x = np.float32(self.eps_x.get())
+            eps_h = np.float32(self.eps_h.get())
+            eps_y = np.float32(self.eps_y.get())
 
             [self.energy, self.norm_grad, self.prediction, error_rate, self.mse, norm_grad_W1, norm_grad_W2] = self.net.iterate(lambda_x, lambda_y, eps_x, eps_h, eps_y, 0., 0.)
             
