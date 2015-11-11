@@ -34,7 +34,7 @@ for epoch in range(n_epochs):
     gW11, gW21, gW12, gW22 = 0., 0., 0., 0.
     # train_energy = energy of the stable configuration (= fixed point) at the end of the x-clamped relaxation phase
     for index in xrange(n_batches_train):
-        net.clamp(index=index)
+        net.initialize(index=index)
 
         # X-CLAMPED RELAXATION PHASE
         for k in range(n_iterations):

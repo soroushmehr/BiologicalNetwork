@@ -5,7 +5,7 @@ import os
 import theano
 import theano.tensor as T
 import theano.tensor.extra_ops
-#from theano.tensor.shared_randomstreams import RandomStreams
+from theano.tensor.shared_randomstreams import RandomStreams
 
 def initialize_layer(n_in, n_out):
 
@@ -97,13 +97,13 @@ class Network(object):
 
         self.y_data_one_hot = T.extra_ops.to_one_hot(self.y_data, 10)
 
-        #self.theano_rng = RandomStreams(self.rng.randint(2 ** 30)) # will be used when introducing noise in Langevin MCMC
+        self.theano_rng = RandomStreams(self.rng.randint(2 ** 30)) # used to initialize h and y at random at the beginning of the x-clamped relaxation phase. will also be used when introducing noise in Langevin MCMC
 
         self.prediction = T.argmax(self.y, axis=1)
         self.error_rate = T.mean(T.neq(self.prediction, self.y_data))
         self.mse        = T.mean(((self.y - self.y_data_one_hot) ** 2).sum(axis=1))
 
-        self.clamp = self.build_clamp_function()
+        self.initialize, self.clamp = self.build_clamp_function()
         self.iterate, self.relax = self.build_iterative_function()
 
     def save(self):
@@ -112,36 +112,30 @@ class Network(object):
         cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
         f.close()
 
-    '''def clamp(self, index, clear=True):
-        self.x_data.set_value(self.train_set_x[index*self.batch_size:(index+1)*self.batch_size,])
-        self.y_data.set_value(self.train_set_y[index*self.batch_size:(index+1)*self.batch_size,])
-
-        if clear:
-            self.x.set_value(self.train_set_x[index*self.batch_size:(index+1)*self.batch_size,])
-            self.h.set_value(np.asarray(
-                self.rng.uniform( low=0., high=1., size=(self.batch_size, 500) ),
-                dtype=theano.config.floatX
-            ))
-            self.y.set_value(np.asarray(
-                self.rng.uniform( low=0., high=1., size=(self.batch_size, 10) ),
-                dtype=theano.config.floatX
-            ))'''
-
     def build_clamp_function(self):
 
         index = T.lscalar('index')
-        x_new = self.train_set_x[index * self.batch_size: (index + 1) * self.batch_size]
-        y_new = self.train_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+        x_data_new = self.train_set_x[index * self.batch_size: (index + 1) * self.batch_size]
+        h_new = self.theano_rng.uniform(size=self.h.shape, low=0., high=1., dtype=theano.config.floatX)
+        y_new = self.theano_rng.uniform(size=self.y.shape, low=0., high=1., dtype=theano.config.floatX)
+        y_data_new = self.train_set_y[index * self.batch_size: (index + 1) * self.batch_size]
 
-        updates = [(self.x_data, x_new), (self.x, x_new), (self.y_data, y_new)]
+        updates_initialize = [(self.x_data, x_data_new), (self.x, x_data_new), (self.h, h_new), (self.y, y_new), (self.y_data, y_data_new)]
+        updates_clamp = [(self.x_data, x_data_new), (self.y_data, y_data_new)]
+
+        initialize_function = theano.function(
+            inputs=[index],
+            outputs=[],
+            updates=updates_initialize
+        )
 
         clamp_function = theano.function(
             inputs=[index],
             outputs=[],
-            updates=updates
+            updates=updates_clamp
         )
 
-        return clamp_function
+        return initialize_function, clamp_function
 
 
     def energy(self):
