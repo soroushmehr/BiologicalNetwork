@@ -39,7 +39,7 @@ for epoch in range(n_epochs):
         # X-CLAMPED RELAXATION PHASE
         for k in range(n_iterations):
             eps = np.float32(2. / (2.+k)) # common value for eps_h and eps_y
-            [energy, norm_grad_hy, _, error, mse, _, _] = net.iterate(lambda_x = 1., lambda_y = 0., epsilon_x = 0., epsilon_h = eps, epsilon_y = eps, epsilon_W1 = 0., epsilon_W2 = 0.)
+            [energy, norm_grad_hy, _, error, mse, _, _] = net.relax(lambda_x = 1., lambda_y = 0., epsilon_x = 0., epsilon_h = eps, epsilon_y = eps)
             if norm_grad_hy < threshold or k == n_iterations-1:
                 train_errors, train_cost, train_energy = train_errors+error, train_cost+mse, train_energy+energy
                 error_rate = 100. * train_errors / (index+1)

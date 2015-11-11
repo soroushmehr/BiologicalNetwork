@@ -57,15 +57,7 @@ class GUI(Tk):
         self.eps_y.set(.1)
         Entry(self, textvariable=self.eps_y, width=5).pack(side=LEFT)
 
-
-        # CLAMP BUTTON
-        def clamp():
-            index = self.index.get()
-            index = max(index,0)
-            index = min(index,49999)
-            self.net.clamp(index=index,clear=True)
-            self.update_canvas()
-        Button(self, text="Clear", command=clamp).pack(side=LEFT)
+        
 
         [self.energy, self.norm_grad, self.prediction, error_rate, self.mse, norm_grad_W1, norm_grad_W2] = self.net.iterate(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., epsilon_W1=0., epsilon_W2=0.)
 
@@ -123,7 +115,7 @@ class GUI(Tk):
         while True:
 
             index = self.index.get() # index of the test example in the test set
-            self.net.clamp(index=index, clear=False)
+            self.net.clamp(index=index)
 
             lambda_x = np.float32(self.lambda_x.get())
             lambda_y = np.float32(self.lambda_y.get())

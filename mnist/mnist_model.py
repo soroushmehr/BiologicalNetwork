@@ -104,9 +104,7 @@ class Network(object):
         self.mse        = T.mean(((self.y - self.y_data_one_hot) ** 2).sum(axis=1))
 
         self.clamp = self.build_clamp_function()
-        self.iterate = self.build_iterative_function()
-
-        self.clamp(index=0)
+        self.iterate, self.relax = self.build_iterative_function()
 
     def save(self):
         f = file(self.path, 'wb')
@@ -215,6 +213,7 @@ class Network(object):
         by_new = self.by + epsilon_W2 * by_delta
 
         updates = [(self.x,x_new), (self.h,h_new), (self.y,y_new), (self.bx,bx_new), (self.W1,W1_new), (self.bh,bh_new), (self.W2,W2_new), (self.by,by_new)]
+        updates_relaxation = [(self.h,h_new), (self.y,y_new)]
 
         energy = T.mean(self.energy())
 
@@ -228,4 +227,10 @@ class Network(object):
             updates=updates
         )
 
-        return iterative_function
+        relaxation_function = theano.function(
+            inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h, epsilon_y],
+            outputs=[energy, norm_grad_hy, self.prediction, self.error_rate, self.mse, norm_grad_W1, norm_grad_W2],
+            updates=updates_relaxation
+        )
+
+        return iterative_function, relaxation_function
