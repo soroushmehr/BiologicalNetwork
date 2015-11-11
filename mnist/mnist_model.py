@@ -30,9 +30,21 @@ def load(path):
 
 def mnist():
     f = gzip.open("mnist.pkl.gz", 'rb')
-    datasets = cPickle.load(f)
+    train_set, valid_set, test_set = cPickle.load(f)
     f.close()
-    return datasets
+
+    def shared_dataset(data_xy, borrow=True):
+        data_x, data_y = data_xy
+        shared_x = theano.shared(np.asarray(data_x, dtype=theano.config.floatX), borrow=borrow)
+        shared_y = theano.shared(np.asarray(data_y, dtype=theano.config.floatX), borrow=borrow)
+        return shared_x, T.cast(shared_y, 'int32')
+
+    test_set_x, test_set_y = shared_dataset(test_set)
+    valid_set_x, valid_set_y = shared_dataset(valid_set)
+    train_set_x, train_set_y = shared_dataset(train_set)
+
+    rval = [(train_set_x, train_set_y), (valid_set_x, valid_set_y), (test_set_x, test_set_y)]
+    return rval
 
 def rho(x):
     # return T.clip(x, 0., 1.)   # hard-sigmoid
@@ -71,9 +83,7 @@ class Network(object):
         self.params = [self.bx, self.W1, self.bh, self.W2, self.by]
 
         # LOAD DATASETS
-        train_set, valid_set, test_set = mnist()
-        self.train_set_x, train_set_y = train_set
-        self.train_set_y = train_set_y.astype(dtype='int32')
+        [(self.train_set_x, self.train_set_y), (valid_set_x, valid_set_y), (test_set_x, test_set_y)] = mnist()
 
         # INITIALIZE STATES
         self.batch_size = batch_size
@@ -87,15 +97,16 @@ class Network(object):
 
         self.y_data_one_hot = T.extra_ops.to_one_hot(self.y_data, 10)
 
-        self.clamp(index=0)
-
         #self.theano_rng = RandomStreams(self.rng.randint(2 ** 30)) # will be used when introducing noise in Langevin MCMC
 
         self.prediction = T.argmax(self.y, axis=1)
         self.error_rate = T.mean(T.neq(self.prediction, self.y_data))
         self.mse        = T.mean(((self.y - self.y_data_one_hot) ** 2).sum(axis=1))
 
+        self.clamp = self.build_clamp_function()
         self.iterate = self.build_iterative_function()
+
+        self.clamp(index=0)
 
     def save(self):
         f = file(self.path, 'wb')
@@ -103,7 +114,7 @@ class Network(object):
         cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
         f.close()
 
-    def clamp(self, index, clear=True):
+    '''def clamp(self, index, clear=True):
         self.x_data.set_value(self.train_set_x[index*self.batch_size:(index+1)*self.batch_size,])
         self.y_data.set_value(self.train_set_y[index*self.batch_size:(index+1)*self.batch_size,])
 
@@ -116,7 +127,24 @@ class Network(object):
             self.y.set_value(np.asarray(
                 self.rng.uniform( low=0., high=1., size=(self.batch_size, 10) ),
                 dtype=theano.config.floatX
-            ))
+            ))'''
+
+    def build_clamp_function(self):
+
+        index = T.lscalar('index')
+        x_new = self.train_set_x[index * self.batch_size: (index + 1) * self.batch_size]
+        y_new = self.train_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+
+        updates = [(self.x_data, x_new), (self.x, x_new), (self.y_data, y_new)]
+
+        clamp_function = theano.function(
+            inputs=[index],
+            outputs=[],
+            updates=updates
+        )
+
+        return clamp_function
+
 
     def energy(self):
         rho_x = rho(self.x)
@@ -126,7 +154,6 @@ class Network(object):
         uni_terms    = - T.dot(rho_x, self.bx) - T.dot(rho_h, self.bh) - T.dot(rho_y, self.by)
         bi_terms     = - T.batched_dot( T.dot(rho_x, self.W1), rho_h ) - T.batched_dot( T.dot(rho_h, self.W2), rho_y )
         return squared_norm + uni_terms + bi_terms
-
 
     def build_iterative_function(self):
 
