@@ -17,7 +17,7 @@ class GUI(Tk):
         self.title('Biological Network for MNIST')
         self.net = Network(batch_size=1)
 
-        self.canvas = Canvas(self, width=800, height=500)
+        self.canvas = Canvas(self, width=600, height=500)
         self.canvas.pack(side=BOTTOM)
 
         # FREQUENCY OF UPDATES
@@ -57,9 +57,9 @@ class GUI(Tk):
         self.eps_y.set(.1)
         Entry(self, textvariable=self.eps_y, width=5).pack(side=LEFT)
 
-        
 
-        [self.energy, self.norm_grad, self.prediction, error_rate, self.mse, norm_grad_W1, norm_grad_W2] = self.net.iterate(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., epsilon_W1=0., epsilon_W2=0.)
+
+        [self.energy, self.norm_grad, self.prediction, error_rate, self.mse, norm_grad_W1, norm_grad_W2] = self.net.iterate(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., alpha_W1=0., alpha_W2=0.)
 
         self.update_canvas(first_time=True)
 
@@ -123,7 +123,7 @@ class GUI(Tk):
             eps_h = np.float32(self.eps_h.get())
             eps_y = np.float32(self.eps_y.get())
 
-            [self.energy, self.norm_grad, self.prediction, error_rate, self.mse, norm_grad_W1, norm_grad_W2] = self.net.iterate(lambda_x, lambda_y, eps_x, eps_h, eps_y, 0., 0.)
+            [self.energy, self.norm_grad, self.prediction, error_rate, self.mse, norm_grad_W1, norm_grad_W2] = self.net.iterate(lambda_x=lambda_x, lambda_y=lambda_y, epsilon_x=eps_x, epsilon_h=eps_h, epsilon_y=eps_y, alpha_W1=0., alpha_W2=0.)
             
             self.update_canvas()
             time.sleep(self.latency)

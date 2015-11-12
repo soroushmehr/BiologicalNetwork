@@ -87,7 +87,7 @@ class Network(object):
 
         # INITIALIZE STATES
         self.batch_size = batch_size
-        self.rng = np.random.RandomState()
+        
 
         self.x_data = theano.shared(value=np.zeros((self.batch_size, 28*28), dtype=theano.config.floatX), name='x_data', borrow=True)
         self.x      = theano.shared(value=np.zeros((self.batch_size, 28*28), dtype=theano.config.floatX), name='x',      borrow=True)
@@ -97,7 +97,8 @@ class Network(object):
 
         self.y_data_one_hot = T.extra_ops.to_one_hot(self.y_data, 10)
 
-        self.theano_rng = RandomStreams(self.rng.randint(2 ** 30)) # used to initialize h and y at random at the beginning of the x-clamped relaxation phase. will also be used when introducing noise in Langevin MCMC
+        rng = np.random.RandomState()
+        self.theano_rng = RandomStreams(rng.randint(2 ** 30)) # used to initialize h and y at random at the beginning of the x-clamped relaxation phase. will also be used when introducing noise in Langevin MCMC
 
         self.prediction = T.argmax(self.y, axis=1)
         self.error_rate = T.mean(T.neq(self.prediction, self.y_data))
@@ -115,13 +116,13 @@ class Network(object):
     def build_clamp_function(self):
 
         index = T.lscalar('index')
-        x_data_new = self.train_set_x[index * self.batch_size: (index + 1) * self.batch_size]
-        h_new = self.theano_rng.uniform(size=self.h.shape, low=0., high=1., dtype=theano.config.floatX)
-        y_new = self.theano_rng.uniform(size=self.y.shape, low=0., high=1., dtype=theano.config.floatX)
-        y_data_new = self.train_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+        x_data_init = self.train_set_x[index * self.batch_size: (index + 1) * self.batch_size]
+        h_init = self.theano_rng.uniform(size=self.h.shape, low=0., high=1., dtype=theano.config.floatX)
+        y_init = self.theano_rng.uniform(size=self.y.shape, low=0., high=1., dtype=theano.config.floatX)
+        y_data_init = self.train_set_y[index * self.batch_size: (index + 1) * self.batch_size]
 
-        updates_initialize = [(self.x_data, x_data_new), (self.x, x_data_new), (self.h, h_new), (self.y, y_new), (self.y_data, y_data_new)]
-        updates_clamp = [(self.x_data, x_data_new), (self.y_data, y_data_new)]
+        updates_initialize = [(self.x_data, x_data_init), (self.x, x_data_init), (self.h, h_init), (self.y, y_init), (self.y_data, y_data_init)]
+        updates_clamp = [(self.x_data, x_data_init), (self.y_data, y_data_init)]
 
         initialize_function = theano.function(
             inputs=[index],
@@ -145,7 +146,7 @@ class Network(object):
         squared_norm = ( T.batched_dot(self.x,self.x) + T.batched_dot(self.h,self.h) + T.batched_dot(self.y,self.y) ) / 2.
         uni_terms    = - T.dot(rho_x, self.bx) - T.dot(rho_h, self.bh) - T.dot(rho_y, self.by)
         bi_terms     = - T.batched_dot( T.dot(rho_x, self.W1), rho_h ) - T.batched_dot( T.dot(rho_h, self.W2), rho_y )
-        return squared_norm + uni_terms + bi_terms
+        return T.mean( squared_norm + uni_terms + bi_terms )
 
     def build_iterative_function(self):
 
@@ -154,76 +155,80 @@ class Network(object):
             rho_h = rho(self.h)
             rho_y = rho(self.y)
 
-            x_pressure = rho_prime(self.x) * (T.dot(rho_h, self.W1.T) + self.bx)
-            x_pressure_final = lambda_x * self.x_data + (1. - lambda_x) * x_pressure
-            x_dot = x_pressure_final - self.x
+            R_x = rho_prime(self.x) * (T.dot(rho_h, self.W1.T) + self.bx)
+            R_x_total = lambda_x * self.x_data + (1. - lambda_x) * R_x
+            x_dot = R_x_total - self.x
 
-            h_pressure = rho_prime(self.h) * (T.dot(rho_x, self.W1) + T.dot(rho_y, self.W2.T) + self.bh)
-            h_dot = h_pressure - self.h
+            R_h = rho_prime(self.h) * (T.dot(rho_x, self.W1) + T.dot(rho_y, self.W2.T) + self.bh)
+            h_dot = R_h - self.h
 
-            y_pressure = rho_prime(self.y) * (T.dot(rho_h, self.W2) + self.by)
-            y_pressure_final = lambda_y * self.y_data_one_hot + (1. - lambda_y) * y_pressure
-            y_dot = y_pressure_final - self.y
+            R_y = rho_prime(self.y) * (T.dot(rho_h, self.W2) + self.by)
+            R_y_total = lambda_y * self.y_data_one_hot + (1. - lambda_y) * R_y
+            y_dot = R_y_total - self.y
 
             return [x_dot, h_dot, y_dot]
 
-        def params_delta(x_delta, h_delta, y_delta):
+        def params_dot(Delta_x, Delta_h, Delta_y):
             rho_x = rho(self.x)
             rho_h = rho(self.h)
             rho_y = rho(self.y)
 
-            bx_delta = T.mean(x_delta, axis=0)
-            W1_delta = (T.dot(x_delta.T, rho_h) + T.dot(rho_x.T, h_delta)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
-            bh_delta = T.mean(h_delta, axis=0)
-            W2_delta = (T.dot(h_delta.T, rho_y) + T.dot(rho_h.T, y_delta)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
-            by_delta = T.mean(y_delta, axis=0)
+            bx_dot = T.mean(Delta_x, axis=0)
+            W1_dot = (T.dot(Delta_x.T, rho_h) + T.dot(rho_x.T, Delta_h)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            bh_dot = T.mean(Delta_h, axis=0)
+            W2_dot = (T.dot(Delta_h.T, rho_y) + T.dot(rho_h.T, Delta_y)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            by_dot = T.mean(Delta_y, axis=0)
 
-            return [bx_delta, W1_delta, bh_delta, W2_delta, by_delta]
+            return [bx_dot, W1_dot, bh_dot, W2_dot, by_dot]
 
-        lambda_x = T.fscalar('lambda_x')
-        lambda_y = T.fscalar('lambda_y')
+        lambda_x  = T.fscalar('lambda_x')
+        lambda_y  = T.fscalar('lambda_y')
         epsilon_x = T.fscalar('epsilon_x')
         epsilon_h = T.fscalar('epsilon_h')
         epsilon_y = T.fscalar('epsilon_y')
-        epsilon_W1 = T.fscalar('epsilon_W1')
-        epsilon_W2 = T.fscalar('epsilon_W2')
+        alpha_W1  = T.fscalar('alpha_W1')
+        alpha_W2  = T.fscalar('alpha_W2')
 
         [x_dot, h_dot, y_dot] = states_dot(lambda_x, lambda_y)
 
-        x_delta = epsilon_x * x_dot
-        h_delta = epsilon_h * h_dot
-        y_delta = epsilon_y * y_dot
+        Delta_x = epsilon_x * x_dot
+        Delta_h = epsilon_h * h_dot
+        Delta_y = epsilon_y * y_dot
 
-        [bx_delta, W1_delta, bh_delta, W2_delta, by_delta] = params_delta(x_delta, h_delta, y_delta)
+        [bx_dot, W1_dot, bh_dot, W2_dot, by_dot] = params_dot(Delta_x, Delta_h, Delta_y)
 
-        x_new = self.x + x_delta
-        h_new = self.h + h_delta
-        y_new = self.y + y_delta
+        Delta_bx = alpha_W1 * bx_dot
+        Delta_W1 = alpha_W1 * W1_dot
+        Delta_bh = alpha_W1 * bh_dot
+        Delta_W2 = alpha_W2 * W2_dot
+        Delta_by = alpha_W2 * by_dot
 
-        bx_new = self.bx + epsilon_W1 * bx_delta
-        W1_new = self.W1 + epsilon_W1 * W1_delta
-        bh_new = self.bh + epsilon_W1 * bh_delta
-        W2_new = self.W2 + epsilon_W2 * W2_delta
-        by_new = self.by + epsilon_W2 * by_delta
+        x_new = self.x + Delta_x
+        h_new = self.h + Delta_h
+        y_new = self.y + Delta_y
+
+        bx_new = self.bx + Delta_bx
+        W1_new = self.W1 + Delta_W1
+        bh_new = self.bh + Delta_bh
+        W2_new = self.W2 + Delta_W2
+        by_new = self.by + Delta_by
 
         updates = [(self.x,x_new), (self.h,h_new), (self.y,y_new), (self.bx,bx_new), (self.W1,W1_new), (self.bh,bh_new), (self.W2,W2_new), (self.by,by_new)]
         updates_relaxation = [(self.h,h_new), (self.y,y_new)]
 
-        energy = T.mean(self.energy())
-
         norm_grad_hy = T.sqrt( (h_dot ** 2).mean(axis=0).sum() + (y_dot ** 2).mean(axis=0).sum() )
-        norm_grad_W1 = T.sqrt( (W1_delta ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
-        norm_grad_W2 = T.sqrt( (W2_delta ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
+        norm_grad_W1 = T.sqrt( (W1_dot ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
+        norm_grad_W2 = T.sqrt( (W2_dot ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
 
         iterative_function = theano.function(
-            inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h, epsilon_y, epsilon_W1, epsilon_W2],
-            outputs=[energy, norm_grad_hy, self.prediction, self.error_rate, self.mse, norm_grad_W1, norm_grad_W2],
+            inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h, epsilon_y, alpha_W1, alpha_W2],
+            outputs=[self.energy(), norm_grad_hy, self.prediction, self.error_rate, self.mse, norm_grad_W1, norm_grad_W2],
             updates=updates
         )
 
         relaxation_function = theano.function(
-            inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h, epsilon_y],
-            outputs=[energy, norm_grad_hy, self.prediction, self.error_rate, self.mse, norm_grad_W1, norm_grad_W2],
+            inputs=[lambda_y, epsilon_h, epsilon_y],
+            outputs=[self.energy(), norm_grad_hy, self.prediction, self.error_rate, self.mse],
             updates=updates_relaxation
         )
 
