@@ -59,7 +59,7 @@ class GUI(Tk):
 
 
 
-        [self.energy, self.norm_grad, self.prediction, error_rate, self.mse, norm_grad_W1, norm_grad_W2] = self.net.iterate(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., alpha_W1=0., alpha_W2=0.)
+        [self.energy, self.norm_grad, self.prediction, _, self.mse, _, _] = self.net.iterate(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., alpha_W1=0., alpha_W2=0.)
 
         self.update_canvas(first_time=True)
 
@@ -123,7 +123,7 @@ class GUI(Tk):
             eps_h = np.float32(self.eps_h.get())
             eps_y = np.float32(self.eps_y.get())
 
-            [self.energy, self.norm_grad, self.prediction, error_rate, self.mse, norm_grad_W1, norm_grad_W2] = self.net.iterate(lambda_x=lambda_x, lambda_y=lambda_y, epsilon_x=eps_x, epsilon_h=eps_h, epsilon_y=eps_y, alpha_W1=0., alpha_W2=0.)
+            [self.energy, self.norm_grad, self.prediction, _, self.mse, _, _] = self.net.iterate(lambda_x=lambda_x, lambda_y=lambda_y, epsilon_x=eps_x, epsilon_h=eps_h, epsilon_y=eps_y, alpha_W1=0., alpha_W2=0.)
             
             self.update_canvas()
             time.sleep(self.latency)

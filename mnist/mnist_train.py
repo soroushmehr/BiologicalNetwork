@@ -31,6 +31,7 @@ for epoch in range(n_epochs):
 
     # TRAINING
     train_energy, train_error, train_cost = 0., 0., 0.
+    relax_iterations, relax_fail = 0., 0.
     gW11, gW21, gW12, gW22 = 0., 0., 0., 0.
     # train_energy = energy of the stable configuration (= fixed point) at the end of the x-clamped relaxation phase
     for index in xrange(n_batches_train):
@@ -42,18 +43,25 @@ for epoch in range(n_epochs):
             [energy, norm_grad_hy, _, error, cost] = net.relax(lambda_y = 0., epsilon_h = eps, epsilon_y = eps)
             if norm_grad_hy < threshold or k == n_iterations-1:
                 train_energy, train_error, train_cost = train_energy+energy, train_error+error, train_cost+cost
+                relax_iterations, relax_fail = relax_iterations+(k+1.), relax_fail+(k == n_iterations-1)
                 energy_avg = train_energy / (index+1)
                 error_avg = 100. * train_error / (index+1)
                 cost_avg = train_cost / (index+1)
+                iterations_avg = relax_iterations / (index+1)
+                fail_avg = 100. * relax_fail / (index+1)
                 break
 
         # LEARNING PHASE
-        [_, _, _, _, _, norm_grad_W1_1, norm_grad_W2_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = 0., alpha_W2 = alpha_W2)
-        [_, _, _, _, _, norm_grad_W1_2, norm_grad_W2_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = 0.)
-        gW11, gW21, gW12, gW22 = gW11+norm_grad_W1_1, gW21+norm_grad_W2_1, gW12+norm_grad_W1_2, gW22+norm_grad_W2_2
-        g11, g21, g12, g22 = gW11 / (index+1), gW21 / (index+1), gW12 / (index+1), gW22 / (index+1)
-        stdout.write("\r %02d E=%.1f er=%.2f%% MSE=%.4f gW11=%.4f gW21=%.2f gW12=%.4f gW22=%.2f" % (epoch, energy_avg, error_avg, cost_avg, g11, g21, g12, g22))
+        [_, _, _, _, _, Delta_W1_relative_1, Delta_W2_relative_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = 0., alpha_W2 = alpha_W2)
+        [_, _, _, _, _, Delta_W1_relative_2, Delta_W2_relative_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = 0.)
+        gW11, gW21, gW12, gW22 = gW11+Delta_W1_relative_1, gW21+Delta_W2_relative_1, gW12+Delta_W1_relative_2, gW22+Delta_W2_relative_2
+        duration = (time.clock() - start_time) / 60.
+        stdout.write("\r %i-%i E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.2f dur=%.1f min" % (epoch, index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg, duration))
         stdout.flush()
 
     stdout.write("\n")
+    g11, g21, g12, g22 = gW11 / n_batches_train, gW21 / n_batches_train, gW12 / n_batches_train, gW22 / n_batches_train
+    stdout.write("gW11=%.4f gW21=%.2f gW12=%.4f gW22=%.2f" % (g11, g21, g12, g22))
+    stdout.write("\n")
+    
     net.save()

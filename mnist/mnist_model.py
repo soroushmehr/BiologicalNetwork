@@ -217,12 +217,13 @@ class Network(object):
         updates_relaxation = [(self.h,h_new), (self.y,y_new)]
 
         norm_grad_hy = T.sqrt( (h_dot ** 2).mean(axis=0).sum() + (y_dot ** 2).mean(axis=0).sum() )
-        norm_grad_W1 = T.sqrt( (W1_dot ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
-        norm_grad_W2 = T.sqrt( (W2_dot ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
+
+        Delta_W1_relative = T.sqrt( (Delta_W1 ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
+        Delta_W2_relative = T.sqrt( (Delta_W2 ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
 
         iterative_function = theano.function(
             inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h, epsilon_y, alpha_W1, alpha_W2],
-            outputs=[self.energy(), norm_grad_hy, self.prediction, self.error_rate, self.mse, norm_grad_W1, norm_grad_W2],
+            outputs=[self.energy(), norm_grad_hy, self.prediction, self.error_rate, self.mse, Delta_W1_relative, Delta_W2_relative],
             updates=updates
         )
 
