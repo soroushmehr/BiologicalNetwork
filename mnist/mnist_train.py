@@ -60,8 +60,8 @@ for epoch in range(n_epochs):
         stdout.flush()
 
     stdout.write("\n")
-    g11, g21, g12, g22 = gW11 / n_batches_train, gW21 / n_batches_train, gW12 / n_batches_train, gW22 / n_batches_train
-    stdout.write("gW11=%.4f gW21=%.2f gW12=%.4f gW22=%.2f" % (g11, g21, g12, g22))
+    g11, g21, g12, g22 = 100. * gW11 / n_batches_train, 100. * gW21 / n_batches_train, 100. * gW12 / n_batches_train, 100. * gW22 / n_batches_train
+    stdout.write("gW11=%.2f gW12=%.2f gW21=%.2f gW22=%.2f" % (g11, g12, g21, g22))
     stdout.write("\n")
     
     net.save()
