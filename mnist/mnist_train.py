@@ -24,6 +24,7 @@ alpha_W2 = np.float32(.008)
 net = Network(path=path, batch_size=batch_size)
 
 n_batches_train = net.train_set_x.get_value(borrow=True).shape[0] / batch_size
+n_batches_valid = net.valid_set_x.get_value(borrow=True).shape[0] / batch_size
 
 print("path = %s, batch_size = %i" % (path, batch_size))
 start_time = time.clock()
@@ -35,7 +36,7 @@ for epoch in range(n_epochs):
     gW11, gW21, gW12, gW22 = 0., 0., 0., 0.
     # train_energy = energy of the stable configuration (= fixed point) at the end of the x-clamped relaxation phase
     for index in xrange(n_batches_train):
-        net.initialize(index=index)
+        net.initialize_train(index=index)
 
         # X-CLAMPED RELAXATION PHASE
         for k in range(n_iterations):
@@ -62,6 +63,31 @@ for epoch in range(n_epochs):
     stdout.write("\n")
     g11, g21, g12, g22 = 100. * gW11 / n_batches_train, 100. * gW21 / n_batches_train, 100. * gW12 / n_batches_train, 100. * gW22 / n_batches_train
     stdout.write("gW11=%.3f%% gW12=%.3f%% gW21=%.3f%% gW22=%.3f%%" % (g11, g12, g21, g22))
+    stdout.write("\n")
+
+    # VALIDATION
+    valid_energy, valid_error, valid_cost = 0., 0., 0.
+    relax_iterations, relax_fail = 0., 0.
+
+    for index in xrange(n_batches_valid):
+        net.initialize_valid(index=index)
+
+        # X-CLAMPED RELAXATION PHASE
+        for k in range(n_iterations):
+            eps = np.float32(2. / (2.+k)) # common value for eps_h and eps_y
+            [energy, norm_grad_hy, _, error, cost] = net.relax(lambda_y = 0., epsilon_h = eps, epsilon_y = eps)
+            if norm_grad_hy < threshold or k == n_iterations-1:
+                valid_energy, valid_error, valid_cost = valid_energy+energy, valid_error+error, valid_cost+cost
+                relax_iterations, relax_fail = relax_iterations+(k+1.), relax_fail+(k == n_iterations-1)
+                energy_avg = valid_energy / (index+1)
+                error_avg = 100. * valid_error / (index+1)
+                cost_avg = valid_cost / (index+1)
+                iterations_avg = relax_iterations / (index+1)
+                fail_avg = 100. * relax_fail / (index+1)
+                break
+
+        stdout.write("\rvalid-%i E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.1f%%" % (index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg))
+        stdout.flush()
     stdout.write("\n")
     
     net.save()

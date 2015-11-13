@@ -83,7 +83,7 @@ class Network(object):
         self.params = [self.bx, self.W1, self.bh, self.W2, self.by]
 
         # LOAD DATASETS
-        [(self.train_set_x, self.train_set_y), (valid_set_x, valid_set_y), (test_set_x, test_set_y)] = mnist()
+        [(self.train_set_x, self.train_set_y), (self.valid_set_x, self.valid_set_y), (self.test_set_x, self.test_set_y)] = mnist()
 
         # INITIALIZE STATES
         self.batch_size = batch_size
@@ -104,7 +104,7 @@ class Network(object):
         self.error_rate = T.mean(T.neq(self.prediction, self.y_data))
         self.mse        = T.mean(((self.y - self.y_data_one_hot) ** 2).sum(axis=1))
 
-        self.initialize, self.clamp = self.build_clamp_function()
+        self.initialize_train, self.initialize_valid, self.clamp = self.build_clamp_function()
         self.iterate, self.relax = self.build_iterative_function()
 
     def save(self):
@@ -116,27 +116,45 @@ class Network(object):
     def build_clamp_function(self):
 
         index = T.lscalar('index')
-        x_data_init = self.train_set_x[index * self.batch_size: (index + 1) * self.batch_size]
+        x_data_init = T.fmatrix('x_data_init')
         h_init = self.theano_rng.uniform(size=self.h.shape, low=0., high=.01, dtype=theano.config.floatX)
         y_init = self.theano_rng.uniform(size=self.y.shape, low=0., high=.01, dtype=theano.config.floatX)
-        y_data_init = self.train_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+        y_data_init = T.ivector('y_data_init')
 
         updates_initialize = [(self.x_data, x_data_init), (self.x, x_data_init), (self.h, h_init), (self.y, y_init), (self.y_data, y_data_init)]
         updates_clamp = [(self.x_data, x_data_init), (self.y_data, y_data_init)]
 
-        initialize_function = theano.function(
+        initialize_train = theano.function(
             inputs=[index],
             outputs=[],
+            givens={
+            x_data_init: self.train_set_x[index * self.batch_size: (index + 1) * self.batch_size],
+            y_data_init: self.train_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+            },
+            updates=updates_initialize
+        )
+
+        initialize_valid = theano.function(
+            inputs=[index],
+            outputs=[],
+            givens={
+            x_data_init: self.valid_set_x[index * self.batch_size: (index + 1) * self.batch_size],
+            y_data_init: self.valid_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+            },
             updates=updates_initialize
         )
 
         clamp_function = theano.function(
             inputs=[index],
             outputs=[],
+            givens={
+            x_data_init: self.test_set_x[index * self.batch_size: (index + 1) * self.batch_size],
+            y_data_init: self.test_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+            },
             updates=updates_clamp
         )
 
-        return initialize_function, clamp_function
+        return initialize_train, initialize_valid, clamp_function
 
 
     def energy(self):

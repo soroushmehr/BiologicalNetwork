@@ -25,8 +25,8 @@ class GUI(Tk):
 
         # INDEX OF TEST EXAMPLE (IN THE TRAINING SET)
         Label(self, text="image").pack(side=LEFT)
-        self.index = IntVar()
-        self.index.set(0)
+        self.index = StringVar()
+        self.index.set("0")
         Entry(self, textvariable=self.index, width=5).pack(side=LEFT)
 
 
@@ -115,7 +115,11 @@ class GUI(Tk):
         while True:
 
             index = self.index.get() # index of the test example in the test set
-            self.net.clamp(index=index)
+            if index.isdigit():
+                index = int(index)
+                index = max(0,index)
+                index = min(9999,index)
+                self.net.clamp(index=index)
 
             lambda_x = np.float32(self.lambda_x.get())
             lambda_y = np.float32(self.lambda_y.get())
