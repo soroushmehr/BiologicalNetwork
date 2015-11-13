@@ -75,8 +75,8 @@ class GUI(Tk):
         x_img=Image.fromarray(x_mat).resize((140,140))
         self.x_imgTk=ImageTk.PhotoImage(x_img)
 
-        h_mat = 256*self.net.h.get_value().reshape((10,50))
-        h_img=Image.fromarray(h_mat).resize((250,50))
+        h_mat = 256*self.net.h.get_value().reshape((10,self.net.n_hidden/10))
+        h_img=Image.fromarray(h_mat).resize((self.net.n_hidden/2,50))
         self.h_imgTk=ImageTk.PhotoImage(h_img)
 
         y_mat = 256*self.net.y.get_value().reshape((1,10))

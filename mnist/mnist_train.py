@@ -6,6 +6,7 @@ import time
 
 path = "params.save"
 batch_size = 20
+n_hidden = 500
 n_epochs = 500
 
 
@@ -21,7 +22,7 @@ alpha_W2 = np.float32(.008)
 
 
 
-net = Network(path=path, batch_size=batch_size)
+net = Network(path=path, batch_size=batch_size, n_hidden=n_hidden)
 
 n_batches_train = net.train_set_x.get_value(borrow=True).shape[0] / batch_size
 n_batches_valid = net.valid_set_x.get_value(borrow=True).shape[0] / batch_size

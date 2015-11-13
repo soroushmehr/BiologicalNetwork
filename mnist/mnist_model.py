@@ -60,19 +60,21 @@ def rho_prime(x):
 
 class Network(object):
 
-    def __init__(self, path="params.save", batch_size=1):
+    def __init__(self, path="params.save", batch_size=1, n_hidden=500):
 
         self.path = path
+        self.batch_size = batch_size
+        self.n_hidden = n_hidden
 
         # LOAD/INITIALIZE PARAMETERS
-        if not os.path.isfile(self.path):
-            bx_values = np.zeros((28*28,), dtype=theano.config.floatX)
-            W1_values = initialize_layer(28*28, 500)
-            bh_values = np.zeros((500,), dtype=theano.config.floatX)
-            W2_values = initialize_layer(500, 10)
-            by_values = np.zeros((10,), dtype=theano.config.floatX)
-        else:
+        if os.path.isfile(self.path):
             [bx_values, W1_values, bh_values, W2_values, by_values] = load(self.path)
+        else:
+            bx_values = np.zeros((28*28,), dtype=theano.config.floatX)
+            W1_values = initialize_layer(28*28, n_hidden)
+            bh_values = np.zeros((n_hidden,), dtype=theano.config.floatX)
+            W2_values = initialize_layer(n_hidden, 10)
+            by_values = np.zeros((10,), dtype=theano.config.floatX)
 
         self.bx = theano.shared(value=bx_values, name='bx', borrow=True)
         self.W1 = theano.shared(value=W1_values, name='W1', borrow=True)
@@ -86,14 +88,11 @@ class Network(object):
         [(self.train_set_x, self.train_set_y), (self.valid_set_x, self.valid_set_y), (self.test_set_x, self.test_set_y)] = mnist()
 
         # INITIALIZE STATES
-        self.batch_size = batch_size
-        
-
-        self.x_data = theano.shared(value=np.zeros((self.batch_size, 28*28), dtype=theano.config.floatX), name='x_data', borrow=True)
-        self.x      = theano.shared(value=np.zeros((self.batch_size, 28*28), dtype=theano.config.floatX), name='x',      borrow=True)
-        self.h      = theano.shared(value=np.zeros((self.batch_size, 500),   dtype=theano.config.floatX), name='h',      borrow=True)
-        self.y      = theano.shared(value=np.zeros((self.batch_size, 10),    dtype=theano.config.floatX), name='y',      borrow=True)
-        self.y_data = theano.shared(value=np.zeros((self.batch_size, ),      dtype='int32'),              name='y_data', borrow=True)
+        self.x_data = theano.shared(value=np.zeros((self.batch_size, 28*28),    dtype=theano.config.floatX), name='x_data', borrow=True)
+        self.x      = theano.shared(value=np.zeros((self.batch_size, 28*28),    dtype=theano.config.floatX), name='x',      borrow=True)
+        self.h      = theano.shared(value=np.zeros((self.batch_size, n_hidden), dtype=theano.config.floatX), name='h',      borrow=True)
+        self.y      = theano.shared(value=np.zeros((self.batch_size, 10),       dtype=theano.config.floatX), name='y',      borrow=True)
+        self.y_data = theano.shared(value=np.zeros((self.batch_size, ),         dtype='int32'),              name='y_data', borrow=True)
 
         self.y_data_one_hot = T.extra_ops.to_one_hot(self.y_data, 10)
 
