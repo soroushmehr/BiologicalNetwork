@@ -48,15 +48,15 @@ def mnist():
 
 def rho(x):
     # return T.clip(x, 0., 1.)   # hard-sigmoid
-    # return T.nnet.sigmoid(x-2) # sigmoid
-    return T.tanh(x)           # hyperbolic tangent
+    return T.nnet.sigmoid(4.*x-2.) # sigmoid
+    # return T.tanh(x)           # hyperbolic tangent
 
 def rho_prime(x):
     # return (x > 0.) * (x < 1.) # hard-sigmoid
-    # y = T.nnet.sigmoid(x-2)    # sigmoid
-    # return y * (1 - y)         # sigmoid
-    y = T.tanh(x)              # hyperbolic tangent
-    return 1. - y ** 2          # hyperbolic tangent
+    y = T.nnet.sigmoid(4.*x-2.)    # sigmoid
+    return 4. * y * (1. - y)       # sigmoid
+    # y = T.tanh(x)              # hyperbolic tangent
+    # return 1. - y ** 2         # hyperbolic tangent
 
 class Network(object):
 

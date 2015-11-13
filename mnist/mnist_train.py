@@ -16,8 +16,8 @@ threshold = .1 # threshold for the norm of grad_hy E to decide when we have reac
 # parameters for the learning phase
 eps_h  = np.float32(.5)
 eps_y  = np.float32(.5)
-alpha_W1 = np.float32(.4)
-alpha_W2 = np.float32(.002)
+alpha_W1 = np.float32(.2)
+alpha_W2 = np.float32(.008)
 
 
 
