@@ -117,8 +117,8 @@ class Network(object):
 
         index = T.lscalar('index')
         x_data_init = self.train_set_x[index * self.batch_size: (index + 1) * self.batch_size]
-        h_init = self.theano_rng.uniform(size=self.h.shape, low=0., high=1., dtype=theano.config.floatX)
-        y_init = self.theano_rng.uniform(size=self.y.shape, low=0., high=1., dtype=theano.config.floatX)
+        h_init = self.theano_rng.uniform(size=self.h.shape, low=0., high=.01, dtype=theano.config.floatX)
+        y_init = self.theano_rng.uniform(size=self.y.shape, low=0., high=.01, dtype=theano.config.floatX)
         y_data_init = self.train_set_y[index * self.batch_size: (index + 1) * self.batch_size]
 
         updates_initialize = [(self.x_data, x_data_init), (self.x, x_data_init), (self.h, h_init), (self.y, y_init), (self.y_data, y_data_init)]
