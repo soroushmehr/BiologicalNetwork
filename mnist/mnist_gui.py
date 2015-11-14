@@ -117,9 +117,9 @@ class GUI(Tk):
             index = self.index.get() # index of the test example in the test set
             if index.isdigit():
                 index = int(index)
-                index = max(0,index)
-                index = min(9999,index)
-                self.net.clamp(index=index)
+            index = hash(index)
+            index = index % 10000
+            self.net.clamp(index=index)
 
             lambda_x = np.float32(self.lambda_x.get())
             lambda_y = np.float32(self.lambda_y.get())
