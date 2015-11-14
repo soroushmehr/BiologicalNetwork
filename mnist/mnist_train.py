@@ -57,13 +57,13 @@ for epoch in range(n_epochs):
         [_, _, _, _, _, Delta_W1_relative_1, Delta_W2_relative_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
         [_, _, _, _, _, Delta_W1_relative_2, Delta_W2_relative_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
         gW11, gW21, gW12, gW22 = gW11+Delta_W1_relative_1, gW21+Delta_W2_relative_1, gW12+Delta_W1_relative_2, gW22+Delta_W2_relative_2
-        duration = (time.clock() - start_time) / 60.
-        stdout.write("\r%i-%i E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.1f%% dur=%.1f min" % (epoch, index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg, duration))
+        stdout.write("\r%i-train-%i E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.1f%%" % (epoch, index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg))
         stdout.flush()
 
     stdout.write("\n")
     g11, g21, g12, g22 = 100. * gW11 / n_batches_train, 100. * gW21 / n_batches_train, 100. * gW12 / n_batches_train, 100. * gW22 / n_batches_train
-    stdout.write("gW11=%.3f%% gW12=%.3f%% gW21=%.3f%% gW22=%.3f%%" % (g11, g12, g21, g22))
+    duration = (time.clock() - start_time) / 60.
+    stdout.write("   gW11=%.3f%% gW12=%.3f%% gW21=%.3f%% gW22=%.3f%% dur=%.1f min" % (g11, g12, g21, g22, duration))
     stdout.write("\n")
 
     # VALIDATION
@@ -87,7 +87,7 @@ for epoch in range(n_epochs):
                 fail_avg = 100. * relax_fail / (index+1)
                 break
 
-        stdout.write("\rvalid-%i E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.1f%%" % (index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg))
+        stdout.write("\r   valid-%i  E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.1f%%" % (index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg))
         stdout.flush()
     stdout.write("\n")
     
