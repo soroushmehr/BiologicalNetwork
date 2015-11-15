@@ -67,7 +67,7 @@ class GUI(Tk):
 
     def update_canvas(self, first_time = False):
 
-        x_data_mat = 256*self.net.x_data.get_value().reshape((28,28))
+        x_data_mat = 256*self.net.outside_world.x_data.get_value().reshape((28,28))
         x_data_img=Image.fromarray(x_data_mat).resize((140,140))
         self.x_data_imgTk=ImageTk.PhotoImage(x_data_img)
 
@@ -84,7 +84,7 @@ class GUI(Tk):
         self.y_imgTk=ImageTk.PhotoImage(y_img)
 
         y_data_one_hot_mat = np.zeros( shape=(1, 10) )
-        index = self.net.y_data.get_value()[0]
+        index = self.net.outside_world.y_data.get_value()[0]
         y_data_one_hot_mat[0,index] = 256.
         y_data_one_hot_img=Image.fromarray(y_data_one_hot_mat).resize((250,25))
         self.y_data_one_hot_imgTk=ImageTk.PhotoImage(y_data_one_hot_img)
@@ -119,7 +119,7 @@ class GUI(Tk):
                 index = int(index)
             index = hash(index)
             index = index % 10000
-            self.net.clamp(index=index)
+            self.net.outside_world.set_test(index=index)
 
             lambda_x = np.float32(self.lambda_x.get())
             lambda_y = np.float32(self.lambda_y.get())

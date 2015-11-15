@@ -24,8 +24,8 @@ alpha_W2 = np.float32(.008)
 
 net = Network(path=path, batch_size=batch_size, n_hidden=n_hidden)
 
-n_batches_train = net.train_set_x.get_value(borrow=True).shape[0] / batch_size
-n_batches_valid = net.valid_set_x.get_value(borrow=True).shape[0] / batch_size
+n_batches_train = net.outside_world.train_set_x.get_value(borrow=True).shape[0] / batch_size
+n_batches_valid = net.outside_world.valid_set_x.get_value(borrow=True).shape[0] / batch_size
 
 print("path = %s, batch_size = %i" % (path, batch_size))
 start_time = time.clock()
@@ -37,6 +37,7 @@ for epoch in range(n_epochs):
     gW11, gW21, gW12, gW22 = 0., 0., 0., 0.
     # train_energy = energy of the stable configuration (= fixed point) at the end of the x-clamped relaxation phase
     for index in xrange(n_batches_train):
+        net.outside_world.set_train(index=index)
         net.initialize_train(index=index)
 
         # X-CLAMPED RELAXATION PHASE
@@ -71,6 +72,7 @@ for epoch in range(n_epochs):
     relax_iterations, relax_fail = 0., 0.
 
     for index in xrange(n_batches_valid):
+        net.outside_world.set_valid(index=index)
         net.initialize_valid(index=index)
 
         # X-CLAMPED RELAXATION PHASE
@@ -91,4 +93,4 @@ for epoch in range(n_epochs):
         stdout.flush()
     stdout.write("\n")
     
-    net.save()
+    net.save_params()

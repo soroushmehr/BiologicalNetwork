@@ -22,29 +22,71 @@ def initialize_layer(n_in, n_out):
 
     return W_values
 
-def load(path):
-    f = file(path, 'rb')
-    params = cPickle.load(f)
-    f.close()
-    return params
+class Outside_World(object):
 
-def mnist():
-    f = gzip.open("mnist.pkl.gz", 'rb')
-    train_set, valid_set, test_set = cPickle.load(f)
-    f.close()
+    def __init__(self, batch_size):
 
-    def shared_dataset(data_xy, borrow=True):
-        data_x, data_y = data_xy
-        shared_x = theano.shared(np.asarray(data_x, dtype=theano.config.floatX), borrow=borrow)
-        shared_y = theano.shared(np.asarray(data_y, dtype=theano.config.floatX), borrow=borrow)
-        return shared_x, T.cast(shared_y, 'int32')
+        self.batch_size = batch_size
 
-    test_set_x, test_set_y = shared_dataset(test_set)
-    valid_set_x, valid_set_y = shared_dataset(valid_set)
-    train_set_x, train_set_y = shared_dataset(train_set)
+        f = gzip.open("mnist.pkl.gz", 'rb')
+        train_set, valid_set, test_set = cPickle.load(f)
+        f.close()
 
-    rval = [(train_set_x, train_set_y), (valid_set_x, valid_set_y), (test_set_x, test_set_y)]
-    return rval
+        def shared_dataset(data_xy, borrow=True):
+            data_x, data_y = data_xy
+            shared_x = theano.shared(np.asarray(data_x, dtype=theano.config.floatX), borrow=borrow)
+            shared_y = theano.shared(np.asarray(data_y, dtype=theano.config.floatX), borrow=borrow)
+            return shared_x, T.cast(shared_y, 'int32')
+
+        self.test_set_x,  self.test_set_y  = shared_dataset(test_set)
+        self.valid_set_x, self.valid_set_y = shared_dataset(valid_set)
+        self.train_set_x, self.train_set_y = shared_dataset(train_set)
+
+        self.x_data = theano.shared(value=np.zeros((self.batch_size, 28*28), dtype=theano.config.floatX), name='x_data', borrow=True)
+        self.y_data = theano.shared(value=np.zeros((self.batch_size, ),      dtype='int32'),              name='y_data', borrow=True)
+        self.y_data_one_hot = T.extra_ops.to_one_hot(self.y_data, 10)
+
+        self.set_train, self.set_valid, self.set_test = self.build_set_functions()
+
+    def build_set_functions(self):
+
+        index = T.lscalar('index')
+        x_data_new = T.fmatrix('x_data_new')
+        y_data_new = T.ivector('y_data_new')
+
+        updates_data = [(self.x_data, x_data_new), (self.y_data, y_data_new)]
+
+        set_train = theano.function(
+            inputs=[index],
+            outputs=[],
+            givens={
+            x_data_new: self.train_set_x[index * self.batch_size: (index + 1) * self.batch_size],
+            y_data_new: self.train_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+            },
+            updates=updates_data
+        )
+
+        set_valid = theano.function(
+            inputs=[index],
+            outputs=[],
+            givens={
+            x_data_new: self.valid_set_x[index * self.batch_size: (index + 1) * self.batch_size],
+            y_data_new: self.valid_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+            },
+            updates=updates_data
+        )
+
+        set_test = theano.function(
+            inputs=[index],
+            outputs=[],
+            givens={
+            x_data_new: self.test_set_x[index * self.batch_size: (index + 1) * self.batch_size],
+            y_data_new: self.test_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+            },
+            updates=updates_data
+        )
+
+        return set_train, set_valid, set_test
 
 def rho(x):
     # return T.clip(x, 0., 1.)   # hard-sigmoid
@@ -67,8 +109,35 @@ class Network(object):
         self.n_hidden = n_hidden
 
         # LOAD/INITIALIZE PARAMETERS
+        self.params = [self.bx, self.W1, self.bh, self.W2, self.by] = self.load_params(path, n_hidden)
+
+        # INITIALIZE STATES
+        self.x = theano.shared(value=np.zeros((self.batch_size, 28*28),    dtype=theano.config.floatX), name='x', borrow=True)
+        self.h = theano.shared(value=np.zeros((self.batch_size, n_hidden), dtype=theano.config.floatX), name='h', borrow=True)
+        self.y = theano.shared(value=np.zeros((self.batch_size, 10),       dtype=theano.config.floatX), name='y', borrow=True)
+
+        self.rho_x = rho(self.x)
+        self.rho_h = rho(self.h)
+        self.rho_y = rho(self.y)
+
+        # LOAD DATASETS
+        self.outside_world = Outside_World(batch_size)
+
+        self.prediction = T.argmax(self.y, axis=1)
+        self.error_rate = T.mean(T.neq(self.prediction, self.outside_world.y_data))
+        self.mse        = T.mean(((self.y - self.outside_world.y_data_one_hot) ** 2).sum(axis=1))
+
+        rng = np.random.RandomState()
+        self.theano_rng = RandomStreams(rng.randint(2 ** 30)) # used to initialize h and y at random at the beginning of the x-clamped relaxation phase. will also be used when introducing noise in Langevin MCMC
+
+        self.initialize_train, self.initialize_valid = self.build_clamp_function()
+        self.iterate, self.relax = self.build_iterative_function()
+
+    def load_params(self, path, n_hidden):
         if os.path.isfile(self.path):
-            [bx_values, W1_values, bh_values, W2_values, by_values] = load(self.path)
+            f = file(path, 'rb')
+            [bx_values, W1_values, bh_values, W2_values, by_values] = cPickle.load(f)
+            f.close()
         else:
             bx_values = np.zeros((28*28,), dtype=theano.config.floatX)
             W1_values = initialize_layer(28*28, n_hidden)
@@ -76,37 +145,15 @@ class Network(object):
             W2_values = initialize_layer(n_hidden, 10)
             by_values = np.zeros((10,), dtype=theano.config.floatX)
 
-        self.bx = theano.shared(value=bx_values, name='bx', borrow=True)
-        self.W1 = theano.shared(value=W1_values, name='W1', borrow=True)
-        self.bh = theano.shared(value=bh_values, name='bh', borrow=True)
-        self.W2 = theano.shared(value=W2_values, name='W2', borrow=True)
-        self.by = theano.shared(value=by_values, name='by', borrow=True)
+        bx = theano.shared(value=bx_values, name='bx', borrow=True)
+        W1 = theano.shared(value=W1_values, name='W1', borrow=True)
+        bh = theano.shared(value=bh_values, name='bh', borrow=True)
+        W2 = theano.shared(value=W2_values, name='W2', borrow=True)
+        by = theano.shared(value=by_values, name='by', borrow=True)
 
-        self.params = [self.bx, self.W1, self.bh, self.W2, self.by]
+        return [bx, W1, bh, W2, by]
 
-        # LOAD DATASETS
-        [(self.train_set_x, self.train_set_y), (self.valid_set_x, self.valid_set_y), (self.test_set_x, self.test_set_y)] = mnist()
-
-        # INITIALIZE STATES
-        self.x_data = theano.shared(value=np.zeros((self.batch_size, 28*28),    dtype=theano.config.floatX), name='x_data', borrow=True)
-        self.x      = theano.shared(value=np.zeros((self.batch_size, 28*28),    dtype=theano.config.floatX), name='x',      borrow=True)
-        self.h      = theano.shared(value=np.zeros((self.batch_size, n_hidden), dtype=theano.config.floatX), name='h',      borrow=True)
-        self.y      = theano.shared(value=np.zeros((self.batch_size, 10),       dtype=theano.config.floatX), name='y',      borrow=True)
-        self.y_data = theano.shared(value=np.zeros((self.batch_size, ),         dtype='int32'),              name='y_data', borrow=True)
-
-        self.y_data_one_hot = T.extra_ops.to_one_hot(self.y_data, 10)
-
-        rng = np.random.RandomState()
-        self.theano_rng = RandomStreams(rng.randint(2 ** 30)) # used to initialize h and y at random at the beginning of the x-clamped relaxation phase. will also be used when introducing noise in Langevin MCMC
-
-        self.prediction = T.argmax(self.y, axis=1)
-        self.error_rate = T.mean(T.neq(self.prediction, self.y_data))
-        self.mse        = T.mean(((self.y - self.y_data_one_hot) ** 2).sum(axis=1))
-
-        self.initialize_train, self.initialize_valid, self.clamp = self.build_clamp_function()
-        self.iterate, self.relax = self.build_iterative_function()
-
-    def save(self):
+    def save_params(self):
         f = file(self.path, 'wb')
         params = [param.get_value() for param in self.params]
         cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
@@ -115,85 +162,60 @@ class Network(object):
     def build_clamp_function(self):
 
         index = T.lscalar('index')
-        x_data_init = T.fmatrix('x_data_init')
+
+        x_init = T.fmatrix('x_init')
         h_init = self.theano_rng.uniform(size=self.h.shape, low=0., high=.01, dtype=theano.config.floatX)
         y_init = self.theano_rng.uniform(size=self.y.shape, low=0., high=.01, dtype=theano.config.floatX)
-        y_data_init = T.ivector('y_data_init')
 
-        updates_initialize = [(self.x_data, x_data_init), (self.x, x_data_init), (self.h, h_init), (self.y, y_init), (self.y_data, y_data_init)]
-        updates_clamp = [(self.x_data, x_data_init), (self.y_data, y_data_init)]
+        updates_states = [(self.x, x_init), (self.h, h_init), (self.y, y_init)]
 
         initialize_train = theano.function(
             inputs=[index],
             outputs=[],
             givens={
-            x_data_init: self.train_set_x[index * self.batch_size: (index + 1) * self.batch_size],
-            y_data_init: self.train_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+            x_init: self.outside_world.train_set_x[index * self.batch_size: (index + 1) * self.batch_size]
             },
-            updates=updates_initialize
+            updates=updates_states
         )
 
         initialize_valid = theano.function(
             inputs=[index],
             outputs=[],
             givens={
-            x_data_init: self.valid_set_x[index * self.batch_size: (index + 1) * self.batch_size],
-            y_data_init: self.valid_set_y[index * self.batch_size: (index + 1) * self.batch_size]
+            x_init: self.outside_world.valid_set_x[index * self.batch_size: (index + 1) * self.batch_size]
             },
-            updates=updates_initialize
+            updates=updates_states
         )
 
-        clamp_function = theano.function(
-            inputs=[index],
-            outputs=[],
-            givens={
-            x_data_init: self.test_set_x[index * self.batch_size: (index + 1) * self.batch_size],
-            y_data_init: self.test_set_y[index * self.batch_size: (index + 1) * self.batch_size]
-            },
-            updates=updates_clamp
-        )
-
-        return initialize_train, initialize_valid, clamp_function
-
+        return initialize_train, initialize_valid
 
     def energy(self):
-        rho_x = rho(self.x)
-        rho_h = rho(self.h)
-        rho_y = rho(self.y)
         squared_norm = ( T.batched_dot(self.x,self.x) + T.batched_dot(self.h,self.h) + T.batched_dot(self.y,self.y) ) / 2.
-        uni_terms    = - T.dot(rho_x, self.bx) - T.dot(rho_h, self.bh) - T.dot(rho_y, self.by)
-        bi_terms     = - T.batched_dot( T.dot(rho_x, self.W1), rho_h ) - T.batched_dot( T.dot(rho_h, self.W2), rho_y )
+        uni_terms    = - T.dot(self.rho_x, self.bx) - T.dot(self.rho_h, self.bh) - T.dot(self.rho_y, self.by)
+        bi_terms     = - T.batched_dot( T.dot(self.rho_x, self.W1), self.rho_h ) - T.batched_dot( T.dot(self.rho_h, self.W2), self.rho_y )
         return T.mean( squared_norm + uni_terms + bi_terms )
 
     def build_iterative_function(self):
 
-        def states_dot(lambda_x, lambda_y):
-            rho_x = rho(self.x)
-            rho_h = rho(self.h)
-            rho_y = rho(self.y)
-
-            R_x = rho_prime(self.x) * (T.dot(rho_h, self.W1.T) + self.bx)
-            R_x_total = lambda_x * self.x_data + (1. - lambda_x) * R_x
+        def states_dot(lambda_x, lambda_y, x_data, y_data):
+            R_x = rho_prime(self.x) * (T.dot(self.rho_h, self.W1.T) + self.bx)
+            R_x_total = lambda_x * x_data + (1. - lambda_x) * R_x
             x_dot = R_x_total - self.x
 
-            R_h = rho_prime(self.h) * (T.dot(rho_x, self.W1) + T.dot(rho_y, self.W2.T) + self.bh)
+            R_h = rho_prime(self.h) * (T.dot(self.rho_x, self.W1) + T.dot(self.rho_y, self.W2.T) + self.bh)
             h_dot = R_h - self.h
 
-            R_y = rho_prime(self.y) * (T.dot(rho_h, self.W2) + self.by)
-            R_y_total = lambda_y * self.y_data_one_hot + (1. - lambda_y) * R_y
+            R_y = rho_prime(self.y) * (T.dot(self.rho_h, self.W2) + self.by)
+            R_y_total = lambda_y * y_data + (1. - lambda_y) * R_y
             y_dot = R_y_total - self.y
 
             return [x_dot, h_dot, y_dot]
 
         def params_dot(Delta_x, Delta_h, Delta_y):
-            rho_x = rho(self.x)
-            rho_h = rho(self.h)
-            rho_y = rho(self.y)
-
             bx_dot = T.mean(Delta_x, axis=0)
-            W1_dot = (T.dot(Delta_x.T, rho_h) + T.dot(rho_x.T, Delta_h)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            W1_dot = (T.dot(Delta_x.T, self.rho_h) + T.dot(self.rho_x.T, Delta_h)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
             bh_dot = T.mean(Delta_h, axis=0)
-            W2_dot = (T.dot(Delta_h.T, rho_y) + T.dot(rho_h.T, Delta_y)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            W2_dot = (T.dot(Delta_h.T, self.rho_y) + T.dot(self.rho_h.T, Delta_y)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
             by_dot = T.mean(Delta_y, axis=0)
 
             return [bx_dot, W1_dot, bh_dot, W2_dot, by_dot]
@@ -206,7 +228,10 @@ class Network(object):
         alpha_W1  = T.fscalar('alpha_W1')
         alpha_W2  = T.fscalar('alpha_W2')
 
-        [x_dot, h_dot, y_dot] = states_dot(lambda_x, lambda_y)
+        x_data = self.outside_world.x_data
+        y_data = self.outside_world.y_data_one_hot
+
+        [x_dot, h_dot, y_dot] = states_dot(lambda_x, lambda_y, x_data, y_data)
 
         Delta_x = epsilon_x * x_dot
         Delta_h = epsilon_h * h_dot
