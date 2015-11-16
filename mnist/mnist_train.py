@@ -8,13 +8,14 @@ path = "params.save"
 batch_size = 20
 n_hidden = 500
 n_epochs = 500
+valid_on = False # validation phase
 
 
-# parameters for the x-clamped relaxation phase
+# hyper-parameters for the x-clamped relaxation phase
 n_iterations = 100 # maximum number of iterations
 threshold = .1 # threshold for the norm of grad_hy E to decide when we have reached a fixed point
 
-# parameters for the learning phase
+# hyper-parameters for the learning phase
 eps_h  = np.float32(.5)
 eps_y  = np.float32(.5)
 alpha_W1 = np.float32(.2)
@@ -66,31 +67,32 @@ for epoch in range(n_epochs):
     print("   dlogW11=%.3f%% dlogW12=%.3f%% dlogW21=%.3f%% dlog=%.3f%%" % (dlogW11, dlogW21, dlogW12, dlogW22))
 
     # VALIDATION
-    valid_energy, valid_error, valid_cost = 0., 0., 0.
-    relax_iterations, relax_fail = 0., 0.
+    if valid_on:
+        valid_energy, valid_error, valid_cost = 0., 0., 0.
+        relax_iterations, relax_fail = 0., 0.
 
-    for index in xrange(n_batches_valid):
-        net.outside_world.set(index_new=index, dataset_new=2) # dataset_new=2 means validation set
-        net.initialize()
+        for index in xrange(n_batches_valid):
+            net.outside_world.set(index_new=index, dataset_new=2) # dataset_new=2 means validation set
+            net.initialize()
 
-        # X-CLAMPED RELAXATION PHASE
-        for k in range(n_iterations):
-            eps = np.float32(2. / (2.+k)) # common value for eps_h and eps_y
-            [energy, norm_grad_hy, _, error, cost] = net.relax(epsilon_h = eps, epsilon_y = eps)
-            if norm_grad_hy < threshold or k == n_iterations-1:
-                valid_energy, valid_error, valid_cost = valid_energy+energy, valid_error+error, valid_cost+cost
-                relax_iterations, relax_fail = relax_iterations+(k+1.), relax_fail+(k == n_iterations-1)
-                energy_avg = valid_energy / (index+1)
-                error_avg = 100. * valid_error / (index+1)
-                cost_avg = valid_cost / (index+1)
-                iterations_avg = relax_iterations / (index+1)
-                fail_avg = 100. * relax_fail / (index+1)
-                break
+            # X-CLAMPED RELAXATION PHASE
+            for k in range(n_iterations):
+                eps = np.float32(2. / (2.+k)) # common value for eps_h and eps_y
+                [energy, norm_grad_hy, _, error, cost] = net.relax(epsilon_h = eps, epsilon_y = eps)
+                if norm_grad_hy < threshold or k == n_iterations-1:
+                    valid_energy, valid_error, valid_cost = valid_energy+energy, valid_error+error, valid_cost+cost
+                    relax_iterations, relax_fail = relax_iterations+(k+1.), relax_fail+(k == n_iterations-1)
+                    energy_avg = valid_energy / (index+1)
+                    error_avg = 100. * valid_error / (index+1)
+                    cost_avg = valid_cost / (index+1)
+                    iterations_avg = relax_iterations / (index+1)
+                    fail_avg = 100. * relax_fail / (index+1)
+                    break
 
-        stdout.write("\r   valid-%i  E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.1f%%" % (index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg))
-        stdout.flush()
-    stdout.write("\n")
+            stdout.write("\r   valid-%i  E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.1f%%" % (index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg))
+            stdout.flush()
+        stdout.write("\n")
+
     duration = (time.clock() - start_time) / 60.
     print("   dur=%.1f min" % (duration))
-    
     net.save_params()
