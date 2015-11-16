@@ -15,8 +15,8 @@ n_test_values = 101
 
 # INITIALIZE THE NETWORK
 net = Network(path=path, batch_size=batch_size, n_hidden=n_hidden)
-net.outside_world.set_train(index=0)
-net.initialize_train(index=0)
+net.outside_world.set(index_new=0, dataset_new=1)
+net.initialize()
 
 # THEANO FUNCTIONS
 h_save = theano.shared(value=np.zeros((batch_size, n_hidden), dtype=theano.config.floatX), name='h_save', borrow=True)
@@ -48,8 +48,8 @@ for k in range(n_iterations):
     for eps in np.linspace(0.,1.,n_test_values):
         load()
         eps = np.float32(eps)
-        net.relax(lambda_y = 0., epsilon_h = eps, epsilon_y = eps)
-        [energy, norm_grad_hy, _, _, _] = net.relax(lambda_y = 0., epsilon_h = 0., epsilon_y = 0.)
+        net.relax(epsilon_h = eps, epsilon_y = eps)
+        [energy, norm_grad_hy, _, _, _] = net.relax(epsilon_h = 0., epsilon_y = 0.)
         energy_list[energy.mean()] = eps, norm_grad_hy
         stdout.write("\rk=%i eps=%.2f E=%.1f norm_grad_hy=%.1f" % (k, eps, energy.mean(), norm_grad_hy))
         stdout.flush()
@@ -61,7 +61,7 @@ for k in range(n_iterations):
     print("k=%i best_epsilon=%.2f E=%.1f norm_grad_hy=%.1f dur=%.1fmin" % (k, best_epsilon, min_energy, norm_grad_hy, duration))
 
     load()
-    net.relax(lambda_y = 0., epsilon_h = best_epsilon, epsilon_y = best_epsilon)
+    net.relax(epsilon_h = best_epsilon, epsilon_y = best_epsilon)
     save()
 
 # EXPERIMENT - RESULTS

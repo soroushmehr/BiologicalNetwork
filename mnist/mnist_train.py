@@ -24,8 +24,8 @@ alpha_W2 = np.float32(.008)
 
 net = Network(path=path, batch_size=batch_size, n_hidden=n_hidden)
 
-n_batches_train = net.outside_world.train_set_x.get_value(borrow=True).shape[0] / batch_size
-n_batches_valid = net.outside_world.valid_set_x.get_value(borrow=True).shape[0] / batch_size
+n_batches_train = net.outside_world.train_set_size / batch_size
+n_batches_valid = net.outside_world.valid_set_size / batch_size
 
 print("path = %s, batch_size = %i" % (path, batch_size))
 start_time = time.clock()
@@ -37,16 +37,13 @@ for epoch in range(n_epochs):
     gW11, gW21, gW12, gW22 = 0., 0., 0., 0.
     # train_energy = energy of the stable configuration (= fixed point) at the end of the x-clamped relaxation phase
     for index in xrange(n_batches_train):
-        net.outside_world.set_train(index=index)
-        net.initialize_train(index=index)
+        net.outside_world.set(index_new=index, dataset_new=1) # dataset_new=1 means training set
+        net.initialize()
 
         # X-CLAMPED RELAXATION PHASE
         for k in range(n_iterations):
-            if k==0:
-                eps = np.float32(.75)
-            else:
-                eps = np.float32(13.5 / (44.+k)) # common value for eps_h and eps_y
-            [energy, norm_grad_hy, _, error, cost] = net.relax(lambda_y = 0., epsilon_h = eps, epsilon_y = eps)
+            eps = np.float32(2. / (2.+k)) # common value for eps_h and eps_y
+            [energy, norm_grad_hy, _, error, cost] = net.relax(epsilon_h = eps, epsilon_y = eps)
             if norm_grad_hy < threshold or k == n_iterations-1:
                 train_energy, train_error, train_cost = train_energy+energy, train_error+error, train_cost+cost
                 relax_iterations, relax_fail = relax_iterations+(k+1.), relax_fail+(k == n_iterations-1)
@@ -75,16 +72,13 @@ for epoch in range(n_epochs):
     relax_iterations, relax_fail = 0., 0.
 
     for index in xrange(n_batches_valid):
-        net.outside_world.set_valid(index=index)
-        net.initialize_valid(index=index)
+        net.outside_world.set(index_new=index, dataset_new=2) # dataset_new=2 means validation set
+        net.initialize()
 
         # X-CLAMPED RELAXATION PHASE
         for k in range(n_iterations):
-            if k==0:
-                eps = np.float32(.75)
-            else:
-                eps = np.float32(13.5 / (44.+k)) # common value for eps_h and eps_y
-            [energy, norm_grad_hy, _, error, cost] = net.relax(lambda_y = 0., epsilon_h = eps, epsilon_y = eps)
+            eps = np.float32(2. / (2.+k)) # common value for eps_h and eps_y
+            [energy, norm_grad_hy, _, error, cost] = net.relax(epsilon_h = eps, epsilon_y = eps)
             if norm_grad_hy < threshold or k == n_iterations-1:
                 valid_energy, valid_error, valid_cost = valid_energy+energy, valid_error+error, valid_cost+cost
                 relax_iterations, relax_fail = relax_iterations+(k+1.), relax_fail+(k == n_iterations-1)
