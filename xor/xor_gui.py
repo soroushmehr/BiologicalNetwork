@@ -14,40 +14,23 @@ class GUI(Tk):
 
         Tk.__init__(self, None)
 
-        self.title('Xor Network')
+        self.title('Biological Network for MNIST')
         self.net = Network(batch_size=1)
-        self.inference_step = self.net.build_inference_step()
 
         self.canvas = Canvas(self, width=600, height=500)
         self.canvas.pack(side=BOTTOM)
 
-        self.update_canvas(first_time=True)
-
-        # START BUTTON
-        self.running = False
-        def onClickStartButton():
-            self.running = not self.running
-            if self.running:
-                startButton.configure(text="Stop")
-            else:
-                startButton.configure(text="Start")
-        startButton = Button(self, text="Start", command=onClickStartButton)
-        startButton.pack(side=LEFT)
-
         # FREQUENCY OF UPDATES
-        Label(self, text="latency").pack(side=LEFT)
-        self.latency = DoubleVar()
-        self.latency.set(0.1)
-        Entry(self, textvariable=self.latency, width=5).pack(side=LEFT)
+        self.latency = .1
 
-        # INDEX OF TEST EXAMPLE IN THE TEST SET
+        # INDEX OF TEST EXAMPLE (IN THE TRAINING SET)
         Label(self, text="image").pack(side=LEFT)
-        self.index = IntVar()
-        self.index.set(0)
+        self.index = StringVar()
+        self.index.set("0")
         Entry(self, textvariable=self.index, width=5).pack(side=LEFT)
 
 
-        # INFERENCE PARAMETERS
+        # PARAMETERS OF THE ITERATIVE PROCEDURE
 
         Label(self, text="lambda_x").pack(side=LEFT)
         self.lambda_x = DoubleVar()
@@ -59,53 +42,36 @@ class GUI(Tk):
         self.lambda_y.set(0.)
         Entry(self, textvariable=self.lambda_y, width=5).pack(side=LEFT)
 
-        Label(self, text="eps_s").pack(side=LEFT)
-        self.eps_s = DoubleVar()
-        self.eps_s.set(0.1)
-        Entry(self, textvariable=self.eps_s, width=5).pack(side=LEFT)
+        Label(self, text="eps_x").pack(side=LEFT)
+        self.eps_x = DoubleVar()
+        self.eps_x.set(.1)
+        Entry(self, textvariable=self.eps_x, width=5).pack(side=LEFT)
 
-        Label(self, text="eps_w").pack(side=LEFT)
-        self.eps_w = DoubleVar()
-        self.eps_w.set(0.)
-        Entry(self, textvariable=self.eps_w, width=5).pack(side=LEFT)
+        Label(self, text="eps_h").pack(side=LEFT)
+        self.eps_h = DoubleVar()
+        self.eps_h.set(.1)
+        Entry(self, textvariable=self.eps_h, width=5).pack(side=LEFT)
 
         Label(self, text="eps_y").pack(side=LEFT)
         self.eps_y = DoubleVar()
-        self.eps_y.set(0.)
+        self.eps_y.set(.1)
         Entry(self, textvariable=self.eps_y, width=5).pack(side=LEFT)
 
+        [self.energy, self.norm_grad, self.prediction, _, self.mse, _, _] = self.net.iterate(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., alpha_W1=0., alpha_W2=0.)
 
-        # CLAMP BUTTON
-        def clamp():
-            index = self.index.get()
-            self.net.clamp(index=index,clear=True)
-            self.update_canvas()
-        Button(self, text="Clear", command=clamp).pack(side=LEFT)
-
-        # INFERENCE BUTTON
-        def set_inference():
-            self.lambda_x.set(1.)
-            self.lambda_y.set(0.)
-            self.eps_s.set(0.1)
-            self.eps_w.set(0.)
-            self.eps_y.set(0.)
-        Button(self, text="Inference", command=set_inference).pack(side=LEFT)
-
-        # LEARNING BUTTON
-        def set_learning():
-            self.lambda_x.set(1.)
-            self.lambda_y.set(1.)
-            self.eps_s.set(0.1)
-            self.eps_w.set(0.1)
-            self.eps_y.set(0.1)
-        Button(self, text="Learning", command=set_learning).pack(side=LEFT)
-
+        self.get_values = theano.function(
+            inputs=[],
+            outputs=[self.net.outside_world.x_data, self.net.outside_world.y_data]
+        )
+        self.update_canvas(first_time=True)
 
         Thread(target = self.run).start()
 
     def update_canvas(self, first_time = False):
 
-        x_data_mat = 256*self.net.x_data.get_value().reshape((1,2))
+        [x_data_values, y_data_one_hot_values] = self.get_values()
+
+        x_data_mat = 256*x_data_values.reshape((1,2))
         x_data_img=Image.fromarray(x_data_mat).resize((50,25))
         self.x_data_imgTk=ImageTk.PhotoImage(x_data_img)
 
@@ -121,83 +87,53 @@ class GUI(Tk):
         y_img=Image.fromarray(y_mat).resize((25,25))
         self.y_imgTk=ImageTk.PhotoImage(y_img)
 
-        y_data_mat = 256*self.net.y_data.get_value().reshape((1,1))
-        y_data_img=Image.fromarray(y_data_mat).resize((25,25))
-        self.y_data_imgTk=ImageTk.PhotoImage(y_data_img)
-
-        bx_mat = self.net.bx.get_value().reshape((1,2))
-        W1_mat = self.net.W1.get_value().reshape((2,3))
-        bh_mat = self.net.bh.get_value().reshape((1,3))
-        W2_mat = self.net.W2.get_value().reshape((1,3))
-        by_mat = self.net.by.get_value().reshape((1,1))
-
-        def aux(bx_mat, W1_mat, bh_mat, W2_mat, by_mat):
-            maxi = max( abs(np.max(bx_mat)), abs(np.max(W1_mat)), abs(np.max(bh_mat)), abs(np.max(W2_mat)), abs(np.max(by_mat)) )
-            bx = 128 + bx_mat / maxi * 128
-            W1 = 128 + W1_mat / maxi * 128
-            bh = 128 + bh_mat / maxi * 128
-            W2 = 128 + W2_mat / maxi * 128
-            by = 128 + by_mat / maxi * 128
-            return (bx, W1, bh, W2, by)
-
-        (bx_mat, W1_mat, bh_mat, W2_mat, by_mat) = aux(bx_mat, W1_mat, bh_mat, W2_mat, by_mat)
-        bx_img=Image.fromarray(bx_mat).resize((50,25))
-        self.bx_imgTk=ImageTk.PhotoImage(bx_img)
-        W1_img=Image.fromarray(W1_mat).resize((75,50))
-        self.W1_imgTk=ImageTk.PhotoImage(W1_img)
-        bh_img=Image.fromarray(bh_mat).resize((75,25))
-        self.bh_imgTk=ImageTk.PhotoImage(bh_img)
-        W2_img=Image.fromarray(W2_mat).resize((75,25))
-        self.W2_imgTk=ImageTk.PhotoImage(W2_img)
-        by_img=Image.fromarray(by_mat).resize((25,25))
-        self.by_imgTk=ImageTk.PhotoImage(by_img)
+        y_data_one_hot_mat = 256*y_data_one_hot_values.reshape((1,1))
+        y_data_one_hot_img=Image.fromarray(y_data_one_hot_mat).resize((25,25))
+        self.y_data_one_hot_imgTk=ImageTk.PhotoImage(y_data_one_hot_img)
+        
 
         if first_time:
-            self.y_data_img_canvas         = self.canvas.create_image(300, 50,  image = self.y_data_imgTk)
-            self.y_img_canvas              = self.canvas.create_image(300, 150, image = self.y_imgTk)
-            self.h_img_canvas              = self.canvas.create_image(300, 250, image = self.h_imgTk)
-            self.x_img_canvas              = self.canvas.create_image(300, 350, image = self.x_imgTk)
-            self.x_data_img_canvas         = self.canvas.create_image(300, 450, image = self.x_data_imgTk)
-            self.W1_img_canvas             = self.canvas.create_image(300, 300, image = self.W1_imgTk)
-            self.W2_img_canvas             = self.canvas.create_image(300, 200, image = self.W2_imgTk)
-            self.bx_img_canvas             = self.canvas.create_image(450, 350, image = self.bx_imgTk)
-            self.bh_img_canvas             = self.canvas.create_image(450, 250, image = self.bh_imgTk)
-            self.by_img_canvas             = self.canvas.create_image(450, 150, image = self.by_imgTk)
+            self.y_data_one_hot_img_canvas = self.canvas.create_image(400, 50,  image = self.y_data_one_hot_imgTk)
+            self.y_img_canvas              = self.canvas.create_image(400, 100, image = self.y_imgTk)
+            self.h_img_canvas              = self.canvas.create_image(400, 150, image = self.h_imgTk)
+            self.x_img_canvas              = self.canvas.create_image(400, 250, image = self.x_imgTk)
+            self.x_data_img_canvas         = self.canvas.create_image(400, 400, image = self.x_data_imgTk)
+            self.energy_canvas             = self.canvas.create_text(  20, 100, anchor=W, font="Purisa", text  = "Energy = %.1f"        % (self.energy))
+            self.norm_grad_canvas          = self.canvas.create_text(  20, 200, anchor=W, font="Purisa", text  = "Norm Gradient = %.1f" % (self.norm_grad))
+            self.prediction_canvas         = self.canvas.create_text(  20, 300, anchor=W, font="Purisa", text  = "Prediction = %i"      % (self.prediction[0]))
+            self.mse_canvas                = self.canvas.create_text(  20, 400, anchor=W, font="Purisa", text  = "Squared Error = %.4f" % (self.mse))
         else:
-            self.canvas.itemconfig(self.y_data_img_canvas,         image = self.y_data_imgTk)
+            self.canvas.itemconfig(self.y_data_one_hot_img_canvas, image = self.y_data_one_hot_imgTk)
             self.canvas.itemconfig(self.y_img_canvas,              image = self.y_imgTk)
             self.canvas.itemconfig(self.h_img_canvas,              image = self.h_imgTk)
             self.canvas.itemconfig(self.x_img_canvas,              image = self.x_imgTk)
             self.canvas.itemconfig(self.x_data_img_canvas,         image = self.x_data_imgTk)
-            self.canvas.itemconfig(self.W1_img_canvas,             image = self.W1_imgTk)
-            self.canvas.itemconfig(self.W2_img_canvas,             image = self.W2_imgTk)
-            self.canvas.itemconfig(self.bx_img_canvas,             image = self.bx_imgTk)
-            self.canvas.itemconfig(self.bh_img_canvas,             image = self.bh_imgTk)
-            self.canvas.itemconfig(self.by_img_canvas,             image = self.by_imgTk)
+            self.canvas.itemconfig(self.energy_canvas,             text  = "Energy = %.1f"        % (self.energy))
+            self.canvas.itemconfig(self.norm_grad_canvas,          text  = "Norm Gradient = %.1f" % (self.norm_grad))
+            self.canvas.itemconfig(self.prediction_canvas,         text  = "Prediction = %i"      % (self.prediction[0]))
+            self.canvas.itemconfig(self.mse_canvas,                text  = "Squared Error = %.4f" % (self.mse))
 
     def run(self):
 
         while True:
 
-            while self.running:
+            index = self.index.get() # index of the test example in the test set
+            if index.isdigit():
+                index = int(index)
+            index = hash(index)
+            index = index % 10000
+            self.net.outside_world.set(index_new=index)
 
-                index = self.index.get() # index of the test example in the test set
-                self.net.clamp(index=index, clear=False)
+            lambda_x = np.float32(self.lambda_x.get())
+            lambda_y = np.float32(self.lambda_y.get())
+            eps_x = np.float32(self.eps_x.get())
+            eps_h = np.float32(self.eps_h.get())
+            eps_y = np.float32(self.eps_y.get())
 
-                lambda_x = self.lambda_x.get()
-                lambda_y = self.lambda_y.get()
-                eps_s = self.eps_s.get()
-                eps_w = self.eps_w.get()
-                eps_y = self.eps_y.get()
-
-                [energy, prediction, error_rate, square_loss] = self.inference_step(lambda_x, lambda_y, eps_s, eps_w, eps_y)
-
-                print("energy = %f, pred = %f, error = %f, loss = %f" % (energy, prediction, error_rate, square_loss))
-                
-                self.update_canvas()
-                time.sleep(self.latency.get())
-
-            time.sleep(0.2)
+            [self.energy, self.norm_grad, self.prediction, _, self.mse, _, _] = self.net.iterate(lambda_x=lambda_x, lambda_y=lambda_y, epsilon_x=eps_x, epsilon_h=eps_h, epsilon_y=eps_y, alpha_W1=0., alpha_W2=0.)
+            
+            self.update_canvas()
+            time.sleep(self.latency)
 
 if __name__ == "__main__":
 
