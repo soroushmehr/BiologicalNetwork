@@ -164,10 +164,10 @@ class Network(object):
         index = T.lscalar('index')
 
         x_init = T.fmatrix('x_init')
-        #h_init = self.theano_rng.uniform(size=self.h.shape, low=0., high=.01, dtype=theano.config.floatX)
-        #y_init = self.theano_rng.uniform(size=self.y.shape, low=0., high=.01, dtype=theano.config.floatX)
-        h_init = T.dot(rho(x_init), self.W1) + self.bh
-        y_init = T.dot(rho(h_init), self.W2) + self.by
+        h_init = self.theano_rng.uniform(size=self.h.shape, low=0., high=.01, dtype=theano.config.floatX)
+        y_init = self.theano_rng.uniform(size=self.y.shape, low=0., high=.01, dtype=theano.config.floatX)
+        #h_init = T.dot(rho(x_init), self.W1) + self.bh
+        #y_init = T.dot(rho(h_init), self.W2) + self.by
 
         updates_states = [(self.x, x_init), (self.h, h_init), (self.y, y_init)]
 
