@@ -51,8 +51,8 @@ class Outside_World(object):
 
     def build_set_function(self):
 
-        index_new = T.iscalar('index_new')
-        dataset_new = T.iscalar('dataset_new')
+        index_new = T.lscalar('index_new')
+        dataset_new = T.lscalar('dataset_new')
 
         updates = [(self.index, index_new), (self.dataset, dataset_new)]
 

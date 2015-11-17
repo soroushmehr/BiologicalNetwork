@@ -64,7 +64,7 @@ for epoch in range(n_epochs):
 
     stdout.write("\n")
     dlogW11, dlogW21, dlogW12, dlogW22 = 100. * gW11 / n_batches_train, 100. * gW21 / n_batches_train, 100. * gW12 / n_batches_train, 100. * gW22 / n_batches_train
-    print("   dlogW11=%.3f%% dlogW12=%.3f%% dlogW21=%.3f%% dlog=%.3f%%" % (dlogW11, dlogW21, dlogW12, dlogW22))
+    print("   dlogW11=%.3f%% dlogW12=%.3f%% dlogW21=%.3f%% dlogW22=%.3f%%" % (dlogW11, dlogW21, dlogW12, dlogW22))
 
     # VALIDATION
     if valid_on:

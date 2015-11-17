@@ -21,7 +21,7 @@ eps_h2 = np.float32(.5)
 eps_y  = np.float32(.5)
 alpha_W1 = np.float32(.0)
 alpha_W2 = np.float32(.0)
-alpha_W3 = np.float32(.01)
+alpha_W3 = np.float32(.1)
 
 net = Network(path=path, batch_size=batch_size, n_hidden=n_hidden)
 
@@ -56,9 +56,9 @@ for epoch in range(n_epochs):
                 break
 
         # LEARNING PHASE
-        [_, _, _, _, _, Delta_logW1_1, Delta_logW2_1, Delta_logW3_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h1 = eps_h1, epsilon_h2 = eps_h2, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2, alpha_W3 = alpha_W3)
-        [_, _, _, _, _, Delta_logW1_2, Delta_logW2_2, Delta_logW3_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h1 = eps_h1, epsilon_h2 = eps_h2, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2, alpha_W3 = alpha_W3)
-        [_, _, _, _, _, Delta_logW1_3, Delta_logW2_3, Delta_logW3_3] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h1 = eps_h1, epsilon_h2 = eps_h2, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2, alpha_W3 = alpha_W3)
+        [_, _, _, _, _, Delta_logW1_1, Delta_logW2_1, Delta_logW3_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h1 = eps_h1, epsilon_h2 = eps_h2, epsilon_y = eps_y, alpha_W1 = 0., alpha_W2 = 0., alpha_W3 = alpha_W3)
+        [_, _, _, _, _, Delta_logW1_2, Delta_logW2_2, Delta_logW3_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h1 = eps_h1, epsilon_h2 = eps_h2, epsilon_y = eps_y, alpha_W1 = 0., alpha_W2 = alpha_W2, alpha_W3 = 0.)
+        [_, _, _, _, _, Delta_logW1_3, Delta_logW2_3, Delta_logW3_3] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h1 = eps_h1, epsilon_h2 = eps_h2, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = 0., alpha_W3 = 0.)
         gW11, gW21, gW31 = gW11+Delta_logW1_1, gW21+Delta_logW2_1, gW31+Delta_logW3_1
         gW12, gW22, gW32 = gW12+Delta_logW1_2, gW22+Delta_logW2_2, gW32+Delta_logW3_2
         gW13, gW23, gW33 = gW13+Delta_logW1_3, gW23+Delta_logW2_3, gW33+Delta_logW3_3
