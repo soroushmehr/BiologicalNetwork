@@ -62,17 +62,21 @@ class GUI(Tk):
         self.eps_y.set(.1)
         Entry(self, textvariable=self.eps_y, width=5).pack(side=LEFT)
 
-
-
         [self.energy, self.norm_grad, self.prediction, _, self.mse, _, _, _] = self.net.iterate(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h1=0., epsilon_h2=0., epsilon_y=0., alpha_W1=0., alpha_W2=0., alpha_W3=0.)
 
+        self.get_values = theano.function(
+            inputs=[],
+            outputs=[self.net.outside_world.x_data, self.net.outside_world.y_data_one_hot]
+        )
         self.update_canvas(first_time=True)
 
         Thread(target = self.run).start()
 
     def update_canvas(self, first_time = False):
 
-        x_data_mat = 256*self.net.outside_world.x_data.get_value().reshape((28,28))
+        [x_data_values, y_data_one_hot_values] = self.get_values()
+
+        x_data_mat = 256*x_data_values.reshape((28,28))
         x_data_img=Image.fromarray(x_data_mat).resize((140,140))
         self.x_data_imgTk=ImageTk.PhotoImage(x_data_img)
 
@@ -92,9 +96,7 @@ class GUI(Tk):
         y_img=Image.fromarray(y_mat).resize((250,25))
         self.y_imgTk=ImageTk.PhotoImage(y_img)
 
-        y_data_one_hot_mat = np.zeros( shape=(1, 10) )
-        index = self.net.outside_world.y_data.get_value()[0]
-        y_data_one_hot_mat[0,index] = 256.
+        y_data_one_hot_mat = 256*y_data_one_hot_values.reshape((1,10))
         y_data_one_hot_img=Image.fromarray(y_data_one_hot_mat).resize((250,25))
         self.y_data_one_hot_imgTk=ImageTk.PhotoImage(y_data_one_hot_img)
 
@@ -130,7 +132,7 @@ class GUI(Tk):
                 index = int(index)
             index = hash(index)
             index = index % 10000
-            self.net.outside_world.set_test(index=index)
+            self.net.outside_world.set(index_new=index, dataset_new=3)
 
             lambda_x = np.float32(self.lambda_x.get())
             lambda_y = np.float32(self.lambda_y.get())
