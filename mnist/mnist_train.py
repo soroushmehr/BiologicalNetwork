@@ -1,10 +1,14 @@
 from mnist_model import *
 
 import numpy as np
+import sys
 from sys import stdout
 import time
 
-path = "params.save"
+if len(sys.argv) > 1:
+    path = sys.argv[1]
+else:
+    path = "params.save"
 batch_size = 20
 n_hidden = 500
 n_epochs = 500
