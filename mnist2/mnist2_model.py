@@ -33,8 +33,8 @@ class Outside_World(object):
         test_set_x,  test_set_y  = shared_dataset(test_set)
 
         # STATE OF THE OUTSIDE WORLD
-        self.dataset = theano.shared(1, name='dataset') # dataset=1 for train_set; dataset=2 for valid_set; dataset=3 for test_set
-        self.index  = theano.shared(0, name='index')
+        self.dataset = theano.shared(np.int64(1), name='dataset') # dataset=1 for train_set; dataset=2 for valid_set; dataset=3 for test_set
+        self.index  = theano.shared(np.int64(0), name='index')
 
         temp_x = ifelse(T.eq(self.dataset,1), train_set_x, test_set_x)
         temp_y = ifelse(T.eq(self.dataset,1), train_set_y, test_set_y)
@@ -215,15 +215,18 @@ class Network(object):
             return [x_dot, h1_dot, h2_dot, y_dot]
 
         def params_dot(Delta_x, Delta_h1, Delta_h2, Delta_y):
-            bx_dot  = T.mean(Delta_x, axis=0)
-            W1_dot  = (T.dot(Delta_x.T,  self.rho_h1) + T.dot(self.rho_x.T,  Delta_h1)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
-            bh1_dot = T.mean(Delta_h1, axis=0)
-            W2_dot  = (T.dot(Delta_h1.T, self.rho_h2) + T.dot(self.rho_h1.T, Delta_h2)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
-            bh2_dot = T.mean(Delta_h2, axis=0)
-            W3_dot  = (T.dot(Delta_h2.T, self.rho_y)  + T.dot(self.rho_h2.T, Delta_y))  / T.cast(self.x.shape[0], dtype=theano.config.floatX)
-            by_dot  = T.mean(Delta_y, axis=0)
+            bx_dot     = T.mean(Delta_x, axis=0)
+            W1_dot_fwd = T.dot(Delta_x.T,  self.rho_h1) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            W1_dot_bwd = T.dot(self.rho_x.T,  Delta_h1) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            bh1_dot    = T.mean(Delta_h1, axis=0)
+            W2_dot_fwd = T.dot(Delta_h1.T, self.rho_h2) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            W2_dot_bwd = T.dot(self.rho_h1.T, Delta_h2) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            bh2_dot    = T.mean(Delta_h2, axis=0)
+            W3_dot_fwd = T.dot(Delta_h2.T, self.rho_y)  / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            W3_dot_bwd = T.dot(self.rho_h2.T, Delta_y)  / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            by_dot     = T.mean(Delta_y, axis=0)
 
-            return [bx_dot, W1_dot, bh1_dot, W2_dot, bh2_dot, W3_dot, by_dot]
+            return [bx_dot, W1_dot_fwd, W1_dot_bwd, bh1_dot, W2_dot_fwd, W2_dot_bwd, bh2_dot, W3_dot_fwd, W3_dot_bwd, by_dot]
 
         lambda_x   = T.fscalar('lambda_x')
         lambda_y   = T.fscalar('lambda_y')
@@ -245,15 +248,21 @@ class Network(object):
         Delta_h2 = epsilon_h2 * h2_dot
         Delta_y  = epsilon_y  * y_dot
 
-        [bx_dot, W1_dot, bh1_dot, W2_dot, bh2_dot, W3_dot, by_dot] = params_dot(Delta_x, Delta_h1, Delta_h2, Delta_y)
+        [bx_dot, W1_dot_fwd, W1_dot_bwd, bh1_dot, W2_dot_fwd, W2_dot_bwd, bh2_dot, W3_dot_fwd, W3_dot_bwd, by_dot] = params_dot(Delta_x, Delta_h1, Delta_h2, Delta_y)
 
-        Delta_bx  = alpha_W1 * bx_dot
-        Delta_W1  = alpha_W1 * W1_dot
-        Delta_bh1 = alpha_W1 * bh1_dot
-        Delta_W2  = alpha_W2 * W2_dot
-        Delta_bh2 = alpha_W2 * bh2_dot
-        Delta_W3  = alpha_W3 * W3_dot
-        Delta_by  = alpha_W3 * by_dot
+        Delta_bx     = alpha_W1 * bx_dot
+        Delta_W1_fwd = alpha_W1 * W1_dot_fwd
+        Delta_W1_bwd = alpha_W1 * W1_dot_bwd
+        Delta_W1     = Delta_W1_fwd + Delta_W1_bwd
+        Delta_bh1    = alpha_W1 * bh1_dot
+        Delta_W2_fwd = alpha_W2 * W2_dot_fwd
+        Delta_W2_bwd = alpha_W2 * W2_dot_bwd
+        Delta_W2     = Delta_W2_fwd + Delta_W2_bwd
+        Delta_bh2    = alpha_W2 * bh2_dot
+        Delta_W3_fwd = alpha_W3 * W3_dot_fwd
+        Delta_W3_bwd = alpha_W3 * W3_dot_bwd
+        Delta_W3     = Delta_W3_fwd + Delta_W3_bwd
+        Delta_by     = alpha_W3 * by_dot
 
         x_new  = self.x  + Delta_x
         h1_new = self.h1 + Delta_h1
@@ -269,13 +278,16 @@ class Network(object):
         by_new  = self.by  + Delta_by
 
         # OUTPUTS FOR MONITORING
-        energy_mean  = T.mean(self.energy)
-        error_rate   = T.mean(T.neq(self.prediction, self.outside_world.y_data))
-        mse          = T.mean(((self.y - self.outside_world.y_data_one_hot) ** 2).sum(axis=1))
-        norm_grad_hy = T.sqrt( (h1_dot ** 2).mean(axis=0).sum() + (h2_dot ** 2).mean(axis=0).sum() + (y_dot ** 2).mean(axis=0).sum() )
-        Delta_logW1 = T.sqrt( (Delta_W1 ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
-        Delta_logW2 = T.sqrt( (Delta_W2 ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
-        Delta_logW3 = T.sqrt( (Delta_W3 ** 2).mean() ) / T.sqrt( (self.W3 ** 2).mean() )
+        energy_mean     = T.mean(self.energy)
+        error_rate      = T.mean(T.neq(self.prediction, self.outside_world.y_data))
+        mse             = T.mean(((self.y - self.outside_world.y_data_one_hot) ** 2).sum(axis=1))
+        norm_grad_hy    = T.sqrt( (h1_dot ** 2).mean(axis=0).sum() + (h2_dot ** 2).mean(axis=0).sum() + (y_dot ** 2).mean(axis=0).sum() )
+        Delta_logW1_fwd = T.sqrt( (Delta_W1_fwd ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
+        Delta_logW1_bwd = T.sqrt( (Delta_W1_bwd ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
+        Delta_logW2_fwd = T.sqrt( (Delta_W2_fwd ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
+        Delta_logW2_bwd = T.sqrt( (Delta_W2_bwd ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
+        Delta_logW3_fwd = T.sqrt( (Delta_W3_fwd ** 2).mean() ) / T.sqrt( (self.W3 ** 2).mean() )
+        Delta_logW3_bwd = T.sqrt( (Delta_W3_bwd ** 2).mean() ) / T.sqrt( (self.W3 ** 2).mean() )
 
         # UPDATES
         updates_params = [(self.bx,bx_new), (self.W1,W1_new), (self.bh1,bh1_new), (self.W2,W2_new), (self.bh2,bh2_new), (self.W3,W3_new), (self.by,by_new)]
@@ -284,7 +296,7 @@ class Network(object):
         # THEANO FUNCTIONS
         iterative_function = theano.function(
             inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h1, epsilon_h2, epsilon_y, alpha_W1, alpha_W2, alpha_W3],
-            outputs=[energy_mean, norm_grad_hy, self.prediction, error_rate, mse, Delta_logW1, Delta_logW2, Delta_logW3],
+            outputs=[energy_mean, norm_grad_hy, self.prediction, error_rate, mse, Delta_logW1_fwd, Delta_logW1_bwd, Delta_logW2_fwd, Delta_logW2_bwd, Delta_logW3_fwd, Delta_logW3_bwd],
             updates=updates_params+updates_states
         )
 

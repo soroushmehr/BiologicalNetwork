@@ -71,10 +71,10 @@ for epoch in range(n_epochs):
     stdout.write("\n")
     dlogW1f1, dlogW2f1, dlogW1f2, dlogW2f2 = 100. * gW1f1 / n_batches_train, 100. * gW2f1 / n_batches_train, 100. * gW1f2 / n_batches_train, 100. * gW2f2 / n_batches_train
     dlogW1b1, dlogW2b1, dlogW1b2, dlogW2b2 = 100. * gW1b1 / n_batches_train, 100. * gW2b1 / n_batches_train, 100. * gW1b2 / n_batches_train, 100. * gW2b2 / n_batches_train
-    print("   k=1 backward: dlogW1b1=%.3f%% dlogW2b1=%.3f%%" % (dlogW1b1, dlogW2b1))
-    print("   k=1 forward:  dlogW1f1=%.3f%% dlogW2f1=%.3f%%" % (dlogW1f1, dlogW2f1))
-    print("   k=2 backward: dlogW1b2=%.3f%% dlogW2b2=%.3f%%" % (dlogW1b2, dlogW2b2))
-    print("   k=2 forward:  dlogW1f2=%.3f%% dlogW2f2=%.3f%%" % (dlogW1f2, dlogW2f2))
+    print("   k=1 backward: dlogW1=%.3f%% dlogW2=%.3f%%" % (dlogW1b1, dlogW2b1))
+    print("   k=1 forward:  dlogW1=%.3f%% dlogW2=%.3f%%" % (dlogW1f1, dlogW2f1))
+    print("   k=2 backward: dlogW1=%.3f%% dlogW2=%.3f%%" % (dlogW1b2, dlogW2b2))
+    print("   k=2 forward:  dlogW1=%.3f%% dlogW2=%.3f%%" % (dlogW1f2, dlogW2f2))
 
     # VALIDATION
     if valid_on:
