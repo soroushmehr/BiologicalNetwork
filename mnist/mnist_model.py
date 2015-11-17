@@ -33,8 +33,9 @@ class Outside_World(object):
         test_set_x,  test_set_y  = shared_dataset(test_set)
 
         # STATE OF THE OUTSIDE WORLD
-        self.dataset = theano.shared(1, name='dataset') # dataset=1 for train_set; dataset=2 for valid_set; dataset=3 for test_set
-        self.index  = theano.shared(0, name='index')
+        #np.ones(1, dtype=np.int64)
+        self.dataset = theano.shared(np.int64(1), name='dataset') # dataset=1 for train_set; dataset=2 for valid_set; dataset=3 for test_set
+        self.index  = theano.shared(np.int64(0), name='index')
 
         temp_x = ifelse(T.eq(self.dataset,1), train_set_x, test_set_x)
         temp_y = ifelse(T.eq(self.dataset,1), train_set_y, test_set_y)
@@ -200,12 +201,14 @@ class Network(object):
 
         def params_dot(Delta_x, Delta_h, Delta_y):
             bx_dot = T.mean(Delta_x, axis=0)
-            W1_dot = (T.dot(Delta_x.T, self.rho_h) + T.dot(self.rho_x.T, Delta_h)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            W1_dot_fwd = T.dot(Delta_x.T, self.rho_h) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            W1_dot_bwd = T.dot(self.rho_x.T, Delta_h) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
             bh_dot = T.mean(Delta_h, axis=0)
-            W2_dot = (T.dot(Delta_h.T, self.rho_y) + T.dot(self.rho_h.T, Delta_y)) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            W2_dot_fwd = T.dot(Delta_h.T, self.rho_y) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+            W2_dot_bwd = T.dot(self.rho_h.T, Delta_y) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
             by_dot = T.mean(Delta_y, axis=0)
 
-            return [bx_dot, W1_dot, bh_dot, W2_dot, by_dot]
+            return [bx_dot, W1_dot_fwd, W1_dot_bwd, bh_dot, W2_dot_fwd, W2_dot_bwd, by_dot]
 
         lambda_x  = T.fscalar('lambda_x')
         lambda_y  = T.fscalar('lambda_y')
@@ -224,13 +227,17 @@ class Network(object):
         Delta_h = epsilon_h * h_dot
         Delta_y = epsilon_y * y_dot
 
-        [bx_dot, W1_dot, bh_dot, W2_dot, by_dot] = params_dot(Delta_x, Delta_h, Delta_y)
+        [bx_dot, W1_dot_fwd, W1_dot_bwd, bh_dot, W2_dot_fwd, W2_dot_bwd, by_dot] = params_dot(Delta_x, Delta_h, Delta_y)
 
-        Delta_bx = alpha_W1 * bx_dot
-        Delta_W1 = alpha_W1 * W1_dot
-        Delta_bh = alpha_W1 * bh_dot
-        Delta_W2 = alpha_W2 * W2_dot
-        Delta_by = alpha_W2 * by_dot
+        Delta_bx     = alpha_W1 * bx_dot
+        Delta_W1_fwd = alpha_W1 * W1_dot_fwd
+        Delta_W1_bwd = alpha_W1 * W1_dot_bwd
+        Delta_W1     = Delta_W1_fwd + Delta_W1_bwd
+        Delta_bh     = alpha_W1 * bh_dot
+        Delta_W2_fwd = alpha_W2 * W2_dot_fwd
+        Delta_W2_bwd = alpha_W2 * W2_dot_bwd
+        Delta_W2     = Delta_W2_fwd + Delta_W2_bwd
+        Delta_by     = alpha_W2 * by_dot
 
         x_new = self.x + Delta_x
         h_new = self.h + Delta_h
@@ -247,8 +254,10 @@ class Network(object):
         error_rate   = T.mean(T.neq(self.prediction, self.outside_world.y_data))
         mse          = T.mean(((self.y - self.outside_world.y_data_one_hot) ** 2).sum(axis=1))
         norm_grad_hy = T.sqrt( (h_dot ** 2).mean(axis=0).sum() + (y_dot ** 2).mean(axis=0).sum() )
-        Delta_logW1 = T.sqrt( (Delta_W1 ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
-        Delta_logW2 = T.sqrt( (Delta_W2 ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
+        Delta_logW1_fwd = T.sqrt( (Delta_W1_fwd ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
+        Delta_logW1_bwd = T.sqrt( (Delta_W1_bwd ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
+        Delta_logW2_fwd = T.sqrt( (Delta_W2_fwd ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
+        Delta_logW2_bwd = T.sqrt( (Delta_W2_bwd ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
 
         # UPDATES
         updates_params = [(self.bx,bx_new), (self.W1,W1_new), (self.bh,bh_new), (self.W2,W2_new), (self.by,by_new)]
@@ -257,7 +266,7 @@ class Network(object):
         # THEANO FUNCTIONS
         iterative_function = theano.function(
             inputs=[lambda_x, lambda_y, epsilon_x, epsilon_h, epsilon_y, alpha_W1, alpha_W2],
-            outputs=[energy_mean, norm_grad_hy, self.prediction, error_rate, mse, Delta_logW1, Delta_logW2],
+            outputs=[energy_mean, norm_grad_hy, self.prediction, error_rate, mse, Delta_logW1_fwd, Delta_logW2_fwd, Delta_logW1_bwd, Delta_logW2_bwd],
             updates=updates_params+updates_states
         )
 

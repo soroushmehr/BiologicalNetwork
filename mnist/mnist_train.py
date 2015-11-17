@@ -35,7 +35,8 @@ for epoch in range(n_epochs):
     # TRAINING
     train_energy, train_error, train_cost = 0., 0., 0.
     relax_iterations, relax_fail = 0., 0.
-    gW11, gW21, gW12, gW22 = 0., 0., 0., 0.
+    gW1f1, gW2f1, gW1b1, gW2b1 = 0., 0., 0., 0.
+    gW1f2, gW2f2, gW1b2, gW2b2 = 0., 0., 0., 0.
     # train_energy = energy of the stable configuration (= fixed point) at the end of the x-clamped relaxation phase
     for index in xrange(n_batches_train):
         net.outside_world.set(index_new=index, dataset_new=1) # dataset_new=1 means training set
@@ -56,15 +57,20 @@ for epoch in range(n_epochs):
                 break
 
         # LEARNING PHASE
-        [_, _, _, _, _, Delta_logW1_1, Delta_logW2_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
-        [_, _, _, _, _, Delta_logW1_2, Delta_logW2_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
-        gW11, gW21, gW12, gW22 = gW11+Delta_logW1_1, gW21+Delta_logW2_1, gW12+Delta_logW1_2, gW22+Delta_logW2_2
+        [_, _, _, _, _, Delta_logW1_fwd_1, Delta_logW2_fwd_1, Delta_logW1_bwd_1, Delta_logW2_bwd_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
+        [_, _, _, _, _, Delta_logW1_fwd_2, Delta_logW2_fwd_2, Delta_logW1_bwd_2, Delta_logW2_bwd_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
+        gW1f1, gW2f1, gW1b1, gW2b1 = gW1f1+Delta_logW1_fwd_1, gW2f1+Delta_logW2_fwd_1, gW1b1+Delta_logW1_bwd_1, gW2b1+Delta_logW2_bwd_1
+        gW1f2, gW2f2, gW1b2, gW2b2 = gW1f2+Delta_logW1_fwd_2, gW2f2+Delta_logW2_fwd_2, gW1b2+Delta_logW1_bwd_2, gW2b2+Delta_logW2_bwd_2
         stdout.write("\r%2i-train-%3i E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.1f%%" % (epoch, index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg))
         stdout.flush()
 
     stdout.write("\n")
-    dlogW11, dlogW21, dlogW12, dlogW22 = 100. * gW11 / n_batches_train, 100. * gW21 / n_batches_train, 100. * gW12 / n_batches_train, 100. * gW22 / n_batches_train
-    print("   dlogW11=%.3f%% dlogW12=%.3f%% dlogW21=%.3f%% dlogW22=%.3f%%" % (dlogW11, dlogW21, dlogW12, dlogW22))
+    dlogW1f1, dlogW2f1, dlogW1f2, dlogW2f2 = 100. * gW1f1 / n_batches_train, 100. * gW2f1 / n_batches_train, 100. * gW1f2 / n_batches_train, 100. * gW2f2 / n_batches_train
+    dlogW1b1, dlogW2b1, dlogW1b2, dlogW2b2 = 100. * gW1b1 / n_batches_train, 100. * gW2b1 / n_batches_train, 100. * gW1b2 / n_batches_train, 100. * gW2b2 / n_batches_train
+    print("   k=1 backward: dlogW1b1=%.3f%% dlogW2b1=%.3f%%" % (dlogW1b1, dlogW2b1))
+    print("   k=1 forward:  dlogW1f1=%.3f%% dlogW2f1=%.3f%%" % (dlogW1f1, dlogW2f1))
+    print("   k=2 backward: dlogW1b2=%.3f%% dlogW2b2=%.3f%%" % (dlogW1b2, dlogW2b2))
+    print("   k=2 forward:  dlogW1f2=%.3f%% dlogW2f2=%.3f%%" % (dlogW1f2, dlogW2f2))
 
     # VALIDATION
     if valid_on:
