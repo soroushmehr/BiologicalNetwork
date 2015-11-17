@@ -171,16 +171,19 @@ class Network(object):
 
     def build_initialize_function(self):
 
-        x_init  = self.outside_world.x_data                                                                   # initialize by clamping x_data
-        h1_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_hidden[0]), dtype=theano.config.floatX)),0) # initialize h=0 and y=0
-        h2_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_hidden[1]), dtype=theano.config.floatX)),0) # initialize h=0 and y=0
+        def rho(s):
+            return T.nnet.sigmoid(4.*s-2.) # sigmoid
+
+        x_init  = self.outside_world.x_data                                                                              # initialize by clamping x_data
+        # h1_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_hidden[0]), dtype=theano.config.floatX)),0) # initialize h=0 and y=0
+        # h2_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_hidden[1]), dtype=theano.config.floatX)),0) # initialize h=0 and y=0
         y_init  = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_output),    dtype=theano.config.floatX)),0) # initialize h=0 and y=0
-        # h1_init = self.theano_rng.uniform(size=self.h1.shape, low=0., high=.01, dtype=theano.config.floatX) # initialize h1, h2 and y at random
-        # h2_init = self.theano_rng.uniform(size=self.h2.shape, low=0., high=.01, dtype=theano.config.floatX) # initialize h1, h2 and y at random
-        # y_init  = self.theano_rng.uniform(size=self.y.shape,  low=0., high=.01, dtype=theano.config.floatX) # initialize h1, h2 and y at random
-        # h1_init = T.dot(rho(x_init),  self.W1) + self.bh1                                                   # initialize h1, h2 and y by forward propagation
-        # h2_init = T.dot(rho(h1_init), self.W2) + self.bh2                                                   # initialize h1, h2 and y by forward propagation
-        # y_init  = T.dot(rho(h2_init), self.W3) + self.by                                                    # initialize h1, h2 and y by forward propagation
+        # h1_init = self.theano_rng.uniform(size=self.h1.shape, low=0., high=.01, dtype=theano.config.floatX)              # initialize h1, h2 and y at random
+        # h2_init = self.theano_rng.uniform(size=self.h2.shape, low=0., high=.01, dtype=theano.config.floatX)              # initialize h1, h2 and y at random
+        # y_init  = self.theano_rng.uniform(size=self.y.shape,  low=0., high=.01, dtype=theano.config.floatX)              # initialize h1, h2 and y at random
+        h1_init = 2. *(T.dot(rho(x_init),  self.W1) + self.bh1)                                                          # initialize h1, h2 and y by forward propagation
+        h2_init = T.dot(rho(h1_init), self.W2) + self.bh2                                                                # initialize h1, h2 and y by forward propagation
+        # y_init  = T.dot(rho(h2_init), self.W3) + self.by                                                                 # initialize h1, h2 and y by forward propagation
 
         updates_states = [(self.x, x_init), (self.h1, h1_init), (self.h2, h2_init), (self.y, y_init)]
 
