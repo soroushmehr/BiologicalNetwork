@@ -69,9 +69,9 @@ for epoch in range(n_epochs):
     dlogW11, dlogW21, dlogW31 = 100. * gW11 / n_batches_train, 100. * gW21 / n_batches_train, 100. * gW31 / n_batches_train
     dlogW12, dlogW22, dlogW32 = 100. * gW12 / n_batches_train, 100. * gW22 / n_batches_train, 100. * gW32 / n_batches_train
     dlogW13, dlogW23, dlogW33 = 100. * gW13 / n_batches_train, 100. * gW23 / n_batches_train, 100. * gW33 / n_batches_train
-    print("   gW11=%.3f%% gW21=%.3f%% gW31=%.3f%%" % (dlogW11, dlogW21, dlogW31))
-    print("   gW12=%.3f%% gW22=%.3f%% gW32=%.3f%%" % (dlogW12, dlogW22, dlogW32))
-    print("   gW13=%.3f%% gW23=%.3f%% gW33=%.3f%%" % (dlogW13, dlogW23, dlogW33))
+    print("   dlogW11=%.3f%% dlogW21=%.3f%% dlogW31=%.3f%%" % (dlogW11, dlogW21, dlogW31))
+    print("   dlogW12=%.3f%% dlogW22=%.3f%% dlogW32=%.3f%%" % (dlogW12, dlogW22, dlogW32))
+    print("   dlogW13=%.3f%% dlogW23=%.3f%% dlogW33=%.3f%%" % (dlogW13, dlogW23, dlogW33))
 
     # VALIDATION
     if valid_on:
