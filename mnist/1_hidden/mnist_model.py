@@ -1,69 +1,14 @@
 import cPickle
-import gzip
 import numpy as np
 import os
+import sys
 import theano
-from theano.ifelse import ifelse
 import theano.tensor as T
-import theano.tensor.extra_ops
 from theano.tensor.shared_randomstreams import RandomStreams
 
-class Outside_World(object):
-
-    def __init__(self, batch_size):
-
-        self.batch_size = batch_size
-        self.train_set_size = 50000
-        self.valid_set_size = 10000
-        self.test_set_size = 10000
-
-        # LOAD MNIST DATASET
-        f = gzip.open("mnist.pkl.gz", 'rb')
-        train_set, valid_set, test_set = cPickle.load(f)
-        f.close()
-
-        def shared_dataset(data_xy, borrow=True):
-            data_x, data_y = data_xy
-            shared_x = theano.shared(np.asarray(data_x, dtype=theano.config.floatX), borrow=borrow)
-            shared_y = theano.shared(np.asarray(data_y, dtype=theano.config.floatX), borrow=borrow)
-            return shared_x, T.cast(shared_y, 'int32')
-
-        train_set_x, train_set_y = shared_dataset(train_set)
-        valid_set_x, valid_set_y = shared_dataset(valid_set)
-        test_set_x,  test_set_y  = shared_dataset(test_set)
-
-        # STATE OF THE OUTSIDE WORLD
-        #np.ones(1, dtype=np.int64)
-        self.dataset = theano.shared(np.int64(1), name='dataset') # dataset=1 for train_set; dataset=2 for valid_set; dataset=3 for test_set
-        self.index  = theano.shared(np.int64(0), name='index')
-
-        temp_x = ifelse(T.eq(self.dataset,1), train_set_x, test_set_x)
-        temp_y = ifelse(T.eq(self.dataset,1), train_set_y, test_set_y)
-
-        set_x = ifelse(T.eq(self.dataset,2), valid_set_x, temp_x)
-        set_y = ifelse(T.eq(self.dataset,2), valid_set_y, temp_y)
-
-        self.x_data = set_x[self.index * self.batch_size: (self.index + 1) * self.batch_size]
-        self.y_data = set_y[self.index * self.batch_size: (self.index + 1) * self.batch_size]
-        self.y_data_one_hot = T.extra_ops.to_one_hot(self.y_data, 10)
-
-        # THEANO FUNCTION TO UPDATE THE STATE
-        self.set = self.build_set_function()
-
-    def build_set_function(self):
-
-        index_new = T.lscalar('index_new')
-        dataset_new = T.lscalar('dataset_new')
-
-        updates = [(self.index, index_new), (self.dataset, dataset_new)]
-
-        set_function = theano.function(
-            inputs=[index_new, dataset_new],
-            outputs=[],
-            updates=updates
-        )
-
-        return set_function
+path = os.path.dirname(os.path.abspath(__file__))+"\.."
+sys.path.insert(0, path)
+from outside_world import Outside_World
 
 class Network(object):
 
@@ -76,7 +21,7 @@ class Network(object):
         self.n_output = 10
 
         # LOAD/INITIALIZE PARAMETERS
-        self.params = [self.bx, self.W1, self.bh, self.W2, self.by] = self.load_params(path, n_hidden)
+        self.params = [self.bx, self.W1, self.bh, self.W2, self.by] = self.__load_params(path, n_hidden)
 
         # INITIALIZE STATES
         self.x = theano.shared(value=np.zeros((self.batch_size, self.n_input),  dtype=theano.config.floatX), name='x', borrow=True)
@@ -121,10 +66,16 @@ class Network(object):
         rng = np.random.RandomState()
         self.theano_rng = RandomStreams(rng.randint(2 ** 30)) # used to initialize h and y at random at the beginning of the x-clamped relaxation phase. will also be used when introducing noise in Langevin MCMC
 
-        self.initialize = self.build_initialize_function()
-        self.iterate, self.relax = self.build_iterative_functions()
+        self.initialize = self.__build_initialize_function()
+        self.iterate, self.relax = self.__build_iterative_functions()
 
-    def load_params(self, path, n_hidden):
+    def save_params(self):
+        f = file(self.path, 'wb')
+        params = [param.get_value() for param in self.params]
+        cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
+        f.close()
+
+    def __load_params(self, path, n_hidden):
 
         def initialize_layer(n_in, n_out):
             rng = np.random.RandomState()
@@ -157,13 +108,7 @@ class Network(object):
 
         return [bx, W1, bh, W2, by]
 
-    def save_params(self):
-        f = file(self.path, 'wb')
-        params = [param.get_value() for param in self.params]
-        cPickle.dump(params, f, protocol=cPickle.HIGHEST_PROTOCOL)
-        f.close()
-
-    def build_initialize_function(self):
+    def __build_initialize_function(self):
 
         x_init = self.outside_world.x_data                                                                # initialize by clamping x_data
         h_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_hidden), dtype=theano.config.floatX)),0)       # initialize h=0 and y=0
@@ -183,7 +128,7 @@ class Network(object):
 
         return initialize
 
-    def build_iterative_functions(self):
+    def __build_iterative_functions(self):
 
         def states_dot(lambda_x, lambda_y, x_data, y_data):
             R_x = self.rho_prime_x * (T.dot(self.rho_h, self.W1.T) + self.bx)

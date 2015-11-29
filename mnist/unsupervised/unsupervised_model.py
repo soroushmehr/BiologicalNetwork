@@ -1,11 +1,14 @@
 import cPickle
-import gzip
 import numpy as np
 import os
+import sys
 import theano
 import theano.tensor as T
-import theano.tensor.extra_ops
-#from theano.tensor.shared_randomstreams import RandomStreams
+from theano.tensor.shared_randomstreams import RandomStreams
+
+path = os.path.dirname(os.path.abspath(__file__))+"\.."
+sys.path.insert(0, path)
+from outside_world import Outside_World
 
 def initialize_layer(n_in, n_out):
 
