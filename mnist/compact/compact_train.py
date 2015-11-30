@@ -20,8 +20,7 @@ n_iterations = 100 # maximum number of iterations
 threshold = .1 # threshold for the norm of grad_hy E to decide when we have reached a fixed point
 
 # hyper-parameters for the learning phase
-eps_h  = np.float32(.5)
-eps_y  = np.float32(.5)
+eps_learning  = np.float32(.5)
 alpha_W1 = np.float32(.2)
 alpha_W2 = np.float32(.008)
 
@@ -39,8 +38,8 @@ for epoch in range(n_epochs):
     # TRAINING
     train_energy, train_error, train_cost = 0., 0., 0.
     relax_iterations, relax_fail = 0., 0.
-    gW1f1, gW2f1, gW1b1, gW2b1 = 0., 0., 0., 0.
-    gW1f2, gW2f2, gW1b2, gW2b2 = 0., 0., 0., 0.
+    gW11, gW21 = 0., 0.
+    gW12, gW22 = 0., 0.
     # train_energy = energy of the stable configuration (= fixed point) at the end of the x-clamped relaxation phase
     for index in xrange(n_batches_train):
         net.outside_world.set(index_new=index, dataset_new=1) # dataset_new=1 means training set
@@ -48,8 +47,8 @@ for epoch in range(n_epochs):
 
         # X-CLAMPED RELAXATION PHASE
         for k in range(n_iterations):
-            eps = np.float32(2. / (2.+k)) # common value for eps_h and eps_y
-            [energy, norm_grad_hy, _, error, cost] = net.relax(epsilon_h = eps, epsilon_y = eps)
+            eps = np.float32(2. / (2.+k))
+            [energy, norm_grad_hy, _, error, cost] = net.relax(epsilon = eps)
             if norm_grad_hy < threshold or k == n_iterations-1:
                 train_energy, train_error, train_cost = train_energy+energy, train_error+error, train_cost+cost
                 relax_iterations, relax_fail = relax_iterations+(k+1.), relax_fail+(k == n_iterations-1)
@@ -61,12 +60,17 @@ for epoch in range(n_epochs):
                 break
 
         # LEARNING PHASE
-        [_, _, _, _, _] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
-        [_, _, _, _, _] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
+        [_, _, _, _, _, Delta_logW1_1, Delta_logW2_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon = eps_learning, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
+        [_, _, _, _, _, Delta_logW1_2, Delta_logW2_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon = eps_learning, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
+        gW11, gW21 = gW11+Delta_logW1_1, gW21+Delta_logW2_1
+        gW12, gW22 = gW12+Delta_logW1_2, gW22+Delta_logW2_2
         stdout.write("\r%2i-train-%3i E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.1f%%" % (epoch, index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg))
         stdout.flush()
 
     stdout.write("\n")
+    dlogW11, dlogW21, dlogW12, dlogW22 = 100. * gW11 / n_batches_train, 100. * gW21 / n_batches_train, 100. * gW12 / n_batches_train, 100. * gW22 / n_batches_train
+    print("   k=1: dlogW1=%.3f%% dlogW2=%.3f%%" % (dlogW11, dlogW21))
+    print("   k=2: dlogW1=%.3f%% dlogW2=%.3f%%" % (dlogW12, dlogW22))
 
     # VALIDATION
     if valid_on:
@@ -79,8 +83,8 @@ for epoch in range(n_epochs):
 
             # X-CLAMPED RELAXATION PHASE
             for k in range(n_iterations):
-                eps = np.float32(2. / (2.+k)) # common value for eps_h and eps_y
-                [energy, norm_grad_hy, _, error, cost] = net.relax(epsilon_h = eps, epsilon_y = eps)
+                eps = np.float32(2. / (2.+k))
+                [energy, norm_grad_hy, _, error, cost] = net.relax(epsilon = eps)
                 if norm_grad_hy < threshold or k == n_iterations-1:
                     valid_energy, valid_error, valid_cost = valid_energy+energy, valid_error+error, valid_cost+cost
                     relax_iterations, relax_fail = relax_iterations+(k+1.), relax_fail+(k == n_iterations-1)

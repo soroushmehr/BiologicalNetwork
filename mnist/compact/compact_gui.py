@@ -42,22 +42,12 @@ class GUI(Tk):
         self.lambda_y.set(0.)
         Entry(self, textvariable=self.lambda_y, width=5).pack(side=LEFT)
 
-        Label(self, text="eps_x").pack(side=LEFT)
-        self.eps_x = DoubleVar()
-        self.eps_x.set(.1)
-        Entry(self, textvariable=self.eps_x, width=5).pack(side=LEFT)
+        Label(self, text="eps").pack(side=LEFT)
+        self.eps = DoubleVar()
+        self.eps.set(.1)
+        Entry(self, textvariable=self.eps, width=5).pack(side=LEFT)
 
-        Label(self, text="eps_h").pack(side=LEFT)
-        self.eps_h = DoubleVar()
-        self.eps_h.set(.1)
-        Entry(self, textvariable=self.eps_h, width=5).pack(side=LEFT)
-
-        Label(self, text="eps_y").pack(side=LEFT)
-        self.eps_y = DoubleVar()
-        self.eps_y.set(.1)
-        Entry(self, textvariable=self.eps_y, width=5).pack(side=LEFT)
-
-        [self.energy, self.norm_grad, self.prediction, _, self.mse] = self.net.iterate(lambda_x=0., lambda_y=0., epsilon_x=0., epsilon_h=0., epsilon_y=0., alpha_W1=0., alpha_W2=0.)
+        [self.energy, self.norm_grad, self.prediction, _, self.mse, _, _] = self.net.iterate(lambda_x=0., lambda_y=0., epsilon=0., alpha_W1=0., alpha_W2=0.)
 
         self.get_values = theano.function(
             inputs=[],
@@ -125,11 +115,9 @@ class GUI(Tk):
 
             lambda_x = np.float32(self.lambda_x.get())
             lambda_y = np.float32(self.lambda_y.get())
-            eps_x = np.float32(self.eps_x.get())
-            eps_h = np.float32(self.eps_h.get())
-            eps_y = np.float32(self.eps_y.get())
+            eps = np.float32(self.eps.get())
 
-            [self.energy, self.norm_grad, self.prediction, _, self.mse] = self.net.iterate(lambda_x=lambda_x, lambda_y=lambda_y, epsilon_x=eps_x, epsilon_h=eps_h, epsilon_y=eps_y, alpha_W1=0., alpha_W2=0.)
+            [self.energy, self.norm_grad, self.prediction, _, self.mse, _, _] = self.net.iterate(lambda_x=lambda_x, lambda_y=lambda_y, epsilon=eps, alpha_W1=0., alpha_W2=0.)
             
             self.update_canvas()
             time.sleep(self.latency)
