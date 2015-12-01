@@ -24,6 +24,7 @@ eps_h  = np.float32(1.)
 eps_y  = np.float32(1.)
 alpha_W1 = np.float32(.04)
 alpha_W2 = np.float32(.04)
+alpha = np.float32(.01)
 
 
 
@@ -44,7 +45,7 @@ for epoch in range(n_epochs):
     # train_energy = energy of the stable configuration (= fixed point) at the end of the x-clamped relaxation phase
     for index in xrange(n_batches_train):
         net.outside_world.set(index_new=index, dataset_new=1) # dataset_new=1 means training set
-        net.initialize()
+        net.forprop()
 
         # X-CLAMPED RELAXATION PHASE
         for k in range(n_iterations):
@@ -60,6 +61,7 @@ for epoch in range(n_epochs):
                 fail_avg = 100. * relax_fail / (index+1)
                 break
 
+        net.mutual_prediction(alpha)
         # LEARNING PHASE
         [_, _, _, _, _, Delta_logW1_fwd_1, Delta_logW2_fwd_1, Delta_logW1_bwd_1, Delta_logW2_bwd_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
         [_, _, _, _, _, Delta_logW1_fwd_2, Delta_logW2_fwd_2, Delta_logW1_bwd_2, Delta_logW2_bwd_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
@@ -83,7 +85,7 @@ for epoch in range(n_epochs):
 
         for index in xrange(n_batches_valid):
             net.outside_world.set(index_new=index, dataset_new=2) # dataset_new=2 means validation set
-            net.initialize()
+            net.forprop()
 
             # X-CLAMPED RELAXATION PHASE
             for k in range(n_iterations):
