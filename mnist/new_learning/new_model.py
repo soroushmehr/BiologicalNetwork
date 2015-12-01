@@ -6,9 +6,12 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-path = os.path.dirname(os.path.abspath(__file__))+"\.."
-sys.path.insert(0, path)
+path = os.path.dirname(os.path.abspath(__file__))+os.sep+os.pardir
+sys.path.append(path)
 from outside_world import Outside_World
+from op import MyOp
+
+my_op = MyOp()
 
 class Network(object):
 
@@ -111,12 +114,12 @@ class Network(object):
     def __build_initialize_function(self):
 
         x_init = self.outside_world.x_data                                                                # initialize by clamping x_data
-        h_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_hidden), dtype=theano.config.floatX)),0)       # initialize h=0 and y=0
-        y_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_output), dtype=theano.config.floatX)),0)       # initialize h=0 and y=0
+        # h_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_hidden), dtype=theano.config.floatX)),0)       # initialize h=0 and y=0
+        # y_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_output), dtype=theano.config.floatX)),0)       # initialize h=0 and y=0
         # h_init = self.theano_rng.uniform(size=self.h.shape, low=0., high=.01, dtype=theano.config.floatX) # initialize h and y at random
         # y_init = self.theano_rng.uniform(size=self.y.shape, low=0., high=.01, dtype=theano.config.floatX) # initialize h and y at random
-        # h_init = T.dot(rho(x_init), self.W1) + self.bh                                                    # initialize h and y by forward propagation
-        # y_init = T.dot(rho(h_init), self.W2) + self.by                                                    # initialize h and y by forward propagation
+        h_init = my_op(2 * (T.dot(rho(x_init), self.W1) + self.bh))                                       # initialize h and y by forward propagation
+        y_init = my_op(T.dot(rho(h_init), self.W2) + self.by)                                             # initialize h and y by forward propagation
 
         updates_states = [(self.x, x_init), (self.h, h_init), (self.y, y_init)]
 
