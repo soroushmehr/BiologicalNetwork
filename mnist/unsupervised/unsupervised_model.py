@@ -6,7 +6,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
-path = os.path.dirname(os.path.abspath(__file__))+"\.."
+path = os.path.dirname(os.path.abspath(__file__))+os.sep+os.pardir
 sys.path.insert(0, path)
 from outside_world import Outside_World
 

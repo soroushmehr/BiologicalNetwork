@@ -95,8 +95,8 @@ class Network(object):
         x_init = self.outside_world.x_data                                                                           # initialize x=x_data
         # h_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_hidden), dtype=theano.config.floatX)),0) # initialize h=0
         # y_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_output), dtype=theano.config.floatX)),0) # initialize y=0
-        h_init = my_op(2 * (T.dot(rho(x_init), self.W1) + self.bh))                                                   # initialize h by forward propagation
-        y_init = my_op(T.dot(rho(h_init), self.W2) + self.by)                                                         # initialize y by forward propagation
+        h_init = my_op(2 * (T.dot(rho(x_init), self.W1) + self.bh))                                                  # initialize h by forward propagation
+        y_init = my_op(T.dot(rho(h_init), self.W2) + self.by)                                                        # initialize y by forward propagation
         states_init = [x_init, h_init, y_init]
 
         initialize = theano.function(
