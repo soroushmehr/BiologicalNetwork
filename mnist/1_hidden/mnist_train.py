@@ -61,8 +61,8 @@ for epoch in range(n_epochs):
                 break
 
         # LEARNING PHASE
-        # [Delta_logW1_bwd_1, Delta_logW2_bwd_1] = net.backprop(alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
-        # Delta_logW1_fwd_1, Delta_logW2_fwd_1 = 0., 0.
+        # [Delta_logW1_bwd_2, Delta_logW2_bwd_1] = net.backprop(alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
+        # Delta_logW1_bwd_1, Delta_logW2_bwd_2, Delta_logW1_fwd_1, Delta_logW2_fwd_1, Delta_logW1_fwd_2, Delta_logW2_fwd_2 = 0., 0., 0., 0., 0., 0.
         [_, _, _, _, _, Delta_logW1_fwd_1, Delta_logW2_fwd_1, Delta_logW1_bwd_1, Delta_logW2_bwd_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
         [_, _, _, _, _, Delta_logW1_fwd_2, Delta_logW2_fwd_2, Delta_logW1_bwd_2, Delta_logW2_bwd_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
         gW1f1, gW2f1, gW1b1, gW2b1 = gW1f1+Delta_logW1_fwd_1, gW2f1+Delta_logW2_fwd_1, gW1b1+Delta_logW1_bwd_1, gW2b1+Delta_logW2_bwd_1

@@ -138,8 +138,10 @@ class Network(object):
     def __build_backprop(self):
 
         y_init = self.outside_world.y_data_one_hot                    # initialize y=y_data
-        h_init = my_op(2 * (T.dot(rho(y_init), self.W2.T) + self.bh)) # initialize h by backward propagation
-        x_init = my_op(T.dot(rho(h_init), self.W1.T) + self.bx)       # initialize x by backward propagation
+        # h_init = my_op(2 * (T.dot(rho(y_init), self.W2.T) + self.bh)) # initialize h by backward propagation
+        # x_init = my_op(T.dot(rho(h_init), self.W1.T) + self.bx)       # initialize x by backward propagation
+        h_init = self.rho_prime_h * (T.dot(self.rho_x, self.W1) + T.dot(rho(y_init), self.W2.T) + self.bh) # initialize h by backward propagation
+        x_init = self.rho_prime_x * (T.dot(rho(h_init), self.W1.T) + self.bx)       # initialize x by backward propagation
 
         Delta_y = y_init - self.y
         Delta_h = h_init - self.h
