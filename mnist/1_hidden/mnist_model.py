@@ -9,10 +9,10 @@ from theano.tensor.shared_randomstreams import RandomStreams
 path = os.path.dirname(os.path.abspath(__file__))+os.sep+os.pardir
 sys.path.append(path)
 from outside_world import Outside_World
-#from op import MyOp
-#my_op = MyOp()
-#def rho(s):
-#    return T.nnet.sigmoid(4.*s-2.)
+from op import MyOp
+my_op = MyOp()
+def rho(s):
+    return T.nnet.sigmoid(4.*s-2.)
 
 class Network(object):
 
@@ -115,13 +115,14 @@ class Network(object):
     def __build_initialize_function(self):
 
         x_init = self.outside_world.x_data                                                                           # initialize x=x_data
-        h_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_hidden), dtype=theano.config.floatX)),0) # initialize h=0
-        y_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_output), dtype=theano.config.floatX)),0) # initialize y=0
+        # h_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_hidden), dtype=theano.config.floatX)),0) # initialize h=0
+        # y_init = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_output), dtype=theano.config.floatX)),0) # initialize y=0
         # h_init = self.theano_rng.uniform(size=self.h.shape, low=0., high=.01, dtype=theano.config.floatX)            # initialize h at random
         # y_init = self.theano_rng.uniform(size=self.y.shape, low=0., high=.01, dtype=theano.config.floatX)            # initialize y at random
-        # y_temp = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_output), dtype=theano.config.floatX)),0) # initialize h and y by forward propagation
-        # h_init = my_op(T.dot(rho(x_init), self.W1) + T.dot(rho(y_temp), self.W2.T) + self.bh)                        # initialize h and y by forward propagation
-        # y_init = my_op(T.dot(rho(h_init), self.W2) + self.by)                                                        # initialize h and y by forward propagation
+        y_temp = T.unbroadcast(T.constant(np.zeros((self.batch_size, self.n_output), dtype=theano.config.floatX)),0) # initialize h and y by forward propagation
+        h_init = my_op(T.dot(rho(x_init), self.W1) + T.dot(rho(y_temp), self.W2.T) + self.bh)                        # initialize h and y by forward propagation
+        # h_init = my_op(2 * T.dot(rho(x_init), self.W1) + self.bh)                                                    # initialize h and y by forward propagation
+        y_init = my_op(T.dot(rho(h_init), self.W2) + self.by)                                                        # initialize h and y by forward propagation
 
         updates_states = [(self.x, x_init), (self.h, h_init), (self.y, y_init)]
 
