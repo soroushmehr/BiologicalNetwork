@@ -71,6 +71,7 @@ class Network(object):
         self.theano_rng = RandomStreams(rng.randint(2 ** 30)) # used to initialize h and y at random at the beginning of the x-clamped relaxation phase. will also be used when introducing noise in Langevin MCMC
 
         self.initialize = self.__build_initialize_function()
+        self.backprop = self.__build_backprop()
         self.iterate, self.relax = self.__build_iterative_functions()
 
     def save_params(self):
@@ -133,6 +134,48 @@ class Network(object):
         )
 
         return initialize
+
+    def __build_backprop(self):
+
+        y_init = self.outside_world.y_data_one_hot                    # initialize y=y_data
+        h_init = my_op(2 * (T.dot(rho(y_init), self.W2.T) + self.bh)) # initialize h by backward propagation
+        x_init = my_op(T.dot(rho(h_init), self.W1.T) + self.bx)       # initialize x by backward propagation
+
+        Delta_y = y_init - self.y
+        Delta_h = h_init - self.h
+        Delta_x = x_init - self.x
+
+        by_dot = T.mean(Delta_y, axis=0)
+        W2_dot = T.dot(self.rho_h.T, Delta_y) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+        bh_dot = T.mean(Delta_h, axis=0)
+        W1_dot = T.dot(self.rho_x.T, Delta_h) / T.cast(self.x.shape[0], dtype=theano.config.floatX)
+        bx_dot = T.mean(Delta_x, axis=0)
+
+        alpha_W1 = T.fscalar('alpha_W1')
+        alpha_W2 = T.fscalar('alpha_W2')
+
+        Delta_W1 = alpha_W1 * W1_dot
+        Delta_W2 = alpha_W2 * W2_dot
+
+        by_new = self.by + alpha_W2 * by_dot
+        W2_new = self.W2 + Delta_W2
+        bh_new = self.bh + alpha_W1 * bh_dot
+        W1_new = self.W1 + Delta_W1
+        bx_new = self.bx + alpha_W1 * bx_dot
+
+        Delta_logW1 = T.sqrt( (Delta_W1 ** 2).mean() ) / T.sqrt( (self.W1 ** 2).mean() )
+        Delta_logW2 = T.sqrt( (Delta_W2 ** 2).mean() ) / T.sqrt( (self.W2 ** 2).mean() )
+        
+        updates_states = [(self.x, x_init), (self.h, h_init), (self.y, y_init)]
+        updates_params = [(self.by, by_new), (self.W2, W2_new), (self.bh, bh_new), (self.W1, W1_new)]
+
+        backprop = theano.function(
+            inputs=[alpha_W1, alpha_W2],
+            outputs=[Delta_logW1, Delta_logW2],
+            updates=updates_params#+updates_states
+        )
+
+        return backprop
 
     def __build_iterative_functions(self):
 
