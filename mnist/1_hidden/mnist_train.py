@@ -12,18 +12,17 @@ else:
 batch_size = 20
 n_hidden = 500
 n_epochs = 500
-valid_on = False # validation phase
-
+valid_on = True # validation phase
 
 # hyper-parameters for the x-clamped relaxation phase
-n_iterations = 100 # maximum number of iterations
-threshold = .1 # threshold for the norm of grad_hy E to decide when we have reached a fixed point
+n_iterations = 500 # maximum number of iterations
+threshold = .01 # threshold for the norm of grad_hy E to decide when we have reached a fixed point
 
 # hyper-parameters for the learning phase
 eps_h  = np.float32(1.)
 eps_y  = np.float32(1.)
-alpha_W1 = np.float32(.2)
-alpha_W2 = np.float32(.008)
+alpha_W1 = np.float32(.18)
+alpha_W2 = np.float32(.01)
 
 
 
@@ -61,10 +60,10 @@ for epoch in range(n_epochs):
                 break
 
         # LEARNING PHASE
-        # [Delta_logW1_bwd_2, Delta_logW2_bwd_1] = net.backprop(alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
-        # Delta_logW1_bwd_1, Delta_logW2_bwd_2, Delta_logW1_fwd_1, Delta_logW2_fwd_1, Delta_logW1_fwd_2, Delta_logW2_fwd_2 = 0., 0., 0., 0., 0., 0.
-        [_, _, _, _, _, Delta_logW1_fwd_1, Delta_logW2_fwd_1, Delta_logW1_bwd_1, Delta_logW2_bwd_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
-        [_, _, _, _, _, Delta_logW1_fwd_2, Delta_logW2_fwd_2, Delta_logW1_bwd_2, Delta_logW2_bwd_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
+        [Delta_logW1_bwd_2, Delta_logW2_bwd_1] = net.backprop(alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
+        Delta_logW1_bwd_1, Delta_logW2_bwd_2, Delta_logW1_fwd_1, Delta_logW2_fwd_1, Delta_logW1_fwd_2, Delta_logW2_fwd_2 = 0., 0., 0., 0., 0., 0.
+        # [_, _, _, _, _, Delta_logW1_fwd_1, Delta_logW2_fwd_1, Delta_logW1_bwd_1, Delta_logW2_bwd_1] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
+        # [_, _, _, _, _, Delta_logW1_fwd_2, Delta_logW2_fwd_2, Delta_logW1_bwd_2, Delta_logW2_bwd_2] = net.iterate(lambda_x = 1., lambda_y = 1., epsilon_x = 0., epsilon_h = eps_h, epsilon_y = eps_y, alpha_W1 = alpha_W1, alpha_W2 = alpha_W2)
         gW1f1, gW2f1, gW1b1, gW2b1 = gW1f1+Delta_logW1_fwd_1, gW2f1+Delta_logW2_fwd_1, gW1b1+Delta_logW1_bwd_1, gW2b1+Delta_logW2_bwd_1
         gW1f2, gW2f2, gW1b2, gW2b2 = gW1f2+Delta_logW1_fwd_2, gW2f2+Delta_logW2_fwd_2, gW1b2+Delta_logW1_bwd_2, gW2b2+Delta_logW2_bwd_2
         stdout.write("\r%2i-train-%3i E=%.1f er=%.2f%% MSE=%.4f it=%.1f fl=%.1f%%" % (epoch, index, energy_avg, error_avg, cost_avg, iterations_avg, fail_avg))
