@@ -15,14 +15,14 @@ n_epochs = 500
 valid_on = True # validation phase
 
 # hyper-parameters for the x-clamped relaxation phase
-n_iterations = 1000 # maximum number of iterations
-threshold = .02 # threshold for the norm of grad_hy E to decide when we have reached a fixed point
+n_iterations = 500 # maximum number of iterations
+threshold = .01 # threshold for the norm of grad_hy E to decide when we have reached a fixed point
 
 # hyper-parameters for the learning phase
 eps_h  = np.float32(1.)
 eps_y  = np.float32(1.)
-alpha_W1 = np.float32(.2)
-alpha_W2 = np.float32(.008)
+alpha_W1 = np.float32(.18)
+alpha_W2 = np.float32(.01)
 
 
 

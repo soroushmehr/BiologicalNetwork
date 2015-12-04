@@ -11,8 +11,17 @@ sys.path.append(path)
 from outside_world import Outside_World
 from op import MyOp
 my_op = MyOp()
+
+a=3.
+
 def rho(s):
-    return T.nnet.sigmoid(4.*s-2.)
+    # return T.clip(s, 0., 1.)       # hard-sigmoid
+    return T.nnet.sigmoid(a*s-a/2.)
+
+def rho_prime(s):
+    # return (s > 0.) * (s < 1.)  # hard-sigmoid
+    r = T.nnet.sigmoid(a*s-a/2.) # sigmoid
+    return a*a * r * (1. - r)    # sigmoid
 
 class Network(object):
 
@@ -31,18 +40,6 @@ class Network(object):
         self.x = theano.shared(value=np.zeros((self.batch_size, self.n_input),  dtype=theano.config.floatX), name='x', borrow=True)
         self.h = theano.shared(value=np.zeros((self.batch_size, self.n_hidden), dtype=theano.config.floatX), name='h', borrow=True)
         self.y = theano.shared(value=np.zeros((self.batch_size, self.n_output), dtype=theano.config.floatX), name='y', borrow=True)
-
-        def rho(s):
-            # return T.clip(s, 0., 1.)       # hard-sigmoid
-            return T.nnet.sigmoid(4.*s-2.) # sigmoid
-            # return T.tanh(s)               # hyperbolic tangent
-
-        def rho_prime(s):
-            # return (s > 0.) * (s < 1.)  # hard-sigmoid
-            r = T.nnet.sigmoid(4.*s-2.) # sigmoid
-            return 4. * r * (1. - r)    # sigmoid
-            # r = T.tanh(s)               # hyperbolic tangent
-            # return 1. - r ** 2          # hyperbolic tangent
 
         self.rho_x = rho(self.x)
         self.rho_h = rho(self.h)

@@ -11,7 +11,7 @@ n_iterations = 1000
 n_points = 10001
 min_range = -100.
 max_range = 100.
-a=1.5
+a=3.
 every = 0.1
 
 def rho(a,x):
@@ -51,7 +51,7 @@ def compute_values(min_range, max_range, n_points, n_iterations, plot=False):
         #plt.plot(p, s_check, "g-", linewidth = 2)
         plt.plot(p, d, "g-", linewidth = 2)
         plt.plot(p[indices], s[indices], "r-", linewidth = 2)
-        plt.xlim(-10.,10.)
+        plt.xlim(-2.,3.)
         plt.ylim(-1.,1.)
         plt.show()
 
